@@ -8,82 +8,13 @@ import (
 	"unicode"
 )
 
-// TokenType represents a token type.
-type TokenType string
-
-// LangToken represents a token in the source code.
-type LangToken struct {
-	Type    TokenType // LangToken type
-	Literal string    // LangToken literal
-}
-
-// Lexer represents the lexer for MyLang.
 type Lexer struct {
-	reader   *bufio.Reader // Buffered reader for source code
-	position int           // Current position in the input
-	ch       rune          // Current character under examination
+	reader     *bufio.Reader
+	position   int
+	ch         rune
+	peekBuffer []rune
 }
 
-const (
-	TokenTypeUndefined        TokenType = "Undefined"
-	TokenTypeEOF              TokenType = "EOF"
-	TokenTypeIdentifier       TokenType = "Identifier"
-	TokenTypeNumber           TokenType = "Number"
-	TokenTypeString           TokenType = "String"
-	TokenTypeAssignment       TokenType = "Assignment"
-	TokenTypePlus             TokenType = "Plus"
-	TokenTypeMinus            TokenType = "Minus"
-	TokenTypeMultiply         TokenType = "Multiply"
-	TokenTypeDivide           TokenType = "Divide"
-	TokenTypeLeftParenthesis  TokenType = "LeftParenthesis"
-	TokenTypeRightParenthesis TokenType = "RightParenthesis"
-	TokenTypeLeftBrace        TokenType = "LeftBrace"
-	TokenTypeRightBrace       TokenType = "RightBrace"
-	TokenTypeComma            TokenType = "Comma"
-	TokenTypeSemicolon        TokenType = "Semicolon"
-	TokenTypeColon            TokenType = "Colon"
-	TokenTypeQuestionMark     TokenType = "QuestionMark"
-	TokenTypeArrow            TokenType = "Arrow"
-	TokenTypeIf               TokenType = "If"
-	TokenTypeElse             TokenType = "Else"
-	TokenTypeFor              TokenType = "For"
-	TokenTypeWhile            TokenType = "While"
-	TokenTypeDo               TokenType = "Do"
-	TokenTypeSwitch           TokenType = "Switch"
-	TokenTypeCase             TokenType = "Case"
-	TokenTypeDefault          TokenType = "Default"
-	TokenTypeData             TokenType = "Data"
-	TokenTypeType             TokenType = "Type"
-	TokenTypeAssembly         TokenType = "Assembly"
-	TokenTypeMain             TokenType = "Main"
-	TokenTypeComment          TokenType = "Comment"
-)
-
-// TokenTypeFunction is the token type for the "function" keyword.
-const TokenTypeFunction TokenType = "Function"
-
-// TokenTypeLet is the token type for the "let" keyword.
-const TokenTypeLet TokenType = "Let"
-
-// Keywords is a map of reserved keywords to their corresponding token types.
-var Keywords = map[string]TokenType{
-	"function": TokenTypeFunction,
-	"let":      TokenTypeLet,
-	"if":       TokenTypeIf,
-	"else":     TokenTypeElse,
-	"for":      TokenTypeFor,
-	"while":    TokenTypeWhile,
-	"do":       TokenTypeDo,
-	"switch":   TokenTypeSwitch,
-	"case":     TokenTypeCase,
-	"default":  TokenTypeDefault,
-	"data":     TokenTypeData,
-	"type":     TokenTypeType,
-	"asm":      TokenTypeAssembly, // New assembly keyword
-	// Add more keywords here
-}
-
-// NewLexer creates a new lexer instance with the provided source code file.
 func NewLexer(inputFile string) (*Lexer, error) {
 	file, err := os.Open(inputFile)
 	if err != nil {
@@ -104,7 +35,6 @@ func NewLexer(inputFile string) (*Lexer, error) {
 	return lexer, nil
 }
 
-// NewLexerFromString creates a new lexer instance with the provided source code string.
 func NewLexerFromString(input string) (*Lexer, error) {
 	reader := bufio.NewReader(strings.NewReader(input))
 
@@ -119,25 +49,31 @@ func NewLexerFromString(input string) (*Lexer, error) {
 	return lexer, nil
 }
 
-// readChar reads the next character in the input and advances the position.
 func (l *Lexer) readChar() {
-	ch, _, err := l.reader.ReadRune()
-	if err != nil {
-		l.ch = 0 // End of file or error
+	if len(l.peekBuffer) > 0 {
+		l.ch = l.peekBuffer[0]
+		l.peekBuffer = l.peekBuffer[1:]
 	} else {
-		l.ch = ch
+		ch, _, err := l.reader.ReadRune()
+		if err != nil {
+			l.ch = 0 // End of file or error
+		} else {
+			l.ch = ch
+		}
 	}
-
 	l.position++
 }
 
-// NextToken scans and returns the next token in the source code.
 func (l *Lexer) NextToken() (LangToken, error) {
 	var tok LangToken
 
 	l.skipWhitespace()
 
 	switch l.ch {
+	case 0: // Handling EOF
+		tok.Literal = ""
+		tok.Type = TokenTypeEOF
+		return tok, nil
 	case '=':
 		if l.peekChar() == '>' {
 			tok = newToken(TokenTypeArrow, l.ch)
@@ -183,14 +119,25 @@ func (l *Lexer) NextToken() (LangToken, error) {
 			return tok, nil
 		}
 		// If not 'asm', treat it as an identifier
-		tok.Literal = string(l.readIdentifier())
-		tok.Type = LookupIdent(tok.Literal)
-		return tok, nil
+		tokType, literal := l.readIdentifier()
+		return LangToken{Type: tokType, Literal: literal}, nil
+	case 'f':
+		// Check for the 'function' keyword
+		if l.peekChar() == 'u' && l.peekCharAtIndex(2) == 'n' &&
+			l.peekCharAtIndex(3) == 'c' && l.peekCharAtIndex(4) == 't' &&
+			l.peekCharAtIndex(5) == 'i' && l.peekCharAtIndex(6) == 'o' &&
+			l.peekCharAtIndex(7) == 'n' && !isLetter(l.peekCharAtIndex(8)) {
+			tok.Literal = l.readFunction()
+			tok.Type = TokenTypeFunction
+			return tok, nil
+		}
+		// If not 'function', treat it as an identifier
+		tokType, literal := l.readIdentifier()
+		return LangToken{Type: tokType, Literal: literal}, nil
 	default:
 		if isLetter(l.ch) {
-			tok.Literal = string(l.readIdentifier())
-			tok.Type = LookupIdent(tok.Literal)
-			return tok, nil
+			tokType, literal := l.readIdentifier()
+			return LangToken{Type: tokType, Literal: literal}, nil
 		} else if isDigit(l.ch) {
 			tok.Type = TokenTypeNumber
 			tok.Literal = l.readNumber()
@@ -204,31 +151,44 @@ func (l *Lexer) NextToken() (LangToken, error) {
 	return tok, nil
 }
 
-func (l *Lexer) peekChar() rune {
-	ch, _, err := l.reader.ReadRune()
-	if err != nil {
-		return 0
+func (l *Lexer) readFunction() string {
+	var funcBuilder strings.Builder
+	for !unicode.IsSpace(l.ch) && l.ch != 0 {
+		funcBuilder.WriteRune(l.ch)
+		l.readChar()
 	}
-	l.reader.UnreadRune() // Revert the read operation
-	return ch
+	return funcBuilder.String()
 }
 
-// Helper function to skip whitespace characters.
+func (l *Lexer) peekChar() rune {
+	if len(l.peekBuffer) == 0 {
+		ch, _, err := l.reader.ReadRune()
+		if err != nil {
+			return 0
+		}
+		l.peekBuffer = append(l.peekBuffer, ch)
+	}
+	return l.peekBuffer[0]
+}
+
+func (l *Lexer) peekCharAtIndex(index int) rune {
+	for len(l.peekBuffer) <= index {
+		ch, _, err := l.reader.ReadRune()
+		if err != nil {
+			return 0
+		}
+		l.peekBuffer = append(l.peekBuffer, ch)
+	}
+	return l.peekBuffer[index]
+}
+
 func (l *Lexer) skipWhitespace() {
 	for unicode.IsSpace(l.ch) {
 		l.readChar()
 	}
 }
 
-func LookupIdent(ident string) TokenType {
-	if tokType, ok := Keywords[ident]; ok {
-		return tokType
-	}
-	return TokenTypeIdentifier
-}
-
-// Helper function to read an identifier or reserved keyword.
-func (l *Lexer) readIdentifier() TokenType {
+func (l *Lexer) readIdentifier() (TokenType, string) {
 	var identBuilder strings.Builder
 	for isLetter(l.ch) || isDigit(l.ch) {
 		identBuilder.WriteRune(l.ch)
@@ -236,12 +196,11 @@ func (l *Lexer) readIdentifier() TokenType {
 	}
 	ident := identBuilder.String()
 	if tokType, isKeyword := Keywords[ident]; isKeyword {
-		return tokType
+		return tokType, ident
 	}
-	return TokenTypeIdentifier
+	return TokenTypeIdentifier, ident
 }
 
-// Helper function to read a number.
 func (l *Lexer) readNumber() string {
 	var numBuilder strings.Builder
 	for isDigit(l.ch) {
@@ -251,7 +210,6 @@ func (l *Lexer) readNumber() string {
 	return numBuilder.String()
 }
 
-// Helper function to read a string.
 func (l *Lexer) readString() string {
 	var strBuilder strings.Builder
 	l.readChar() // Consume the opening double quote
@@ -262,7 +220,6 @@ func (l *Lexer) readString() string {
 	return strBuilder.String()
 }
 
-// Helper function to read an assembly block.
 func (l *Lexer) readAssembly() string {
 	var asmBuilder strings.Builder
 	for !unicode.IsSpace(l.ch) && l.ch != 0 {
@@ -270,37 +227,4 @@ func (l *Lexer) readAssembly() string {
 		l.readChar()
 	}
 	return asmBuilder.String()
-}
-
-// Helper function to peek the character at a specific index without consuming it.
-func (l *Lexer) peekCharAtIndex(index int) rune {
-	currentPos := l.position
-	var peekRune rune
-
-	for i := 0; i <= index; i++ {
-		peekRune, _, _ = l.reader.ReadRune()
-	}
-
-	// Reset reader to original position
-	l.reader.Reset(l.reader)
-	for i := 0; i < currentPos; i++ {
-		l.reader.ReadRune()
-	}
-
-	return peekRune
-}
-
-// Helper function to check if a character is a letter.
-func isLetter(ch rune) bool {
-	return unicode.IsLetter(ch) || ch == '_'
-}
-
-// Helper function to check if a character is a digit.
-func isDigit(ch rune) bool {
-	return unicode.IsDigit(ch)
-}
-
-// newToken creates a new LangToken with the given type and literal value.
-func newToken(tokenType TokenType, ch rune) LangToken {
-	return LangToken{Type: tokenType, Literal: string(ch)}
 }

@@ -19,7 +19,7 @@ func TestLexer_NextToken(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name:  "Test Identifiers",
+			name:  "Test TokenType",
 			input: "function let if else for while do switch case default data type asm",
 			want: []LangToken{
 				{Type: TokenTypeFunction, Literal: "function"},
@@ -36,6 +36,70 @@ func TestLexer_NextToken(t *testing.T) {
 				{Type: TokenTypeType, Literal: "type"},
 				{Type: TokenTypeAssembly, Literal: "asm"},
 				{Type: TokenTypeEOF, Literal: ""},
+			},
+			wantErr: false,
+		},
+		{
+			name:  "Test Classic For Loop",
+			input: "for (let i = 0; i < 5; i = i + 1) { print(i) }",
+			want: []LangToken{
+				{Type: TokenTypeFor, Literal: "for"},
+			},
+			wantErr: false,
+		},
+		{
+			name:  "Test Lambda For Loop",
+			input: "for (i -> i < 5; i = i + 1) { print(i) }",
+			want:  []LangToken{
+				// Add the expected tokens for this test case
+			},
+			wantErr: false,
+		},
+		{
+			name:  "Test For Each Loop (forEach)",
+			input: "for item in range(0, 5) { print(item) }",
+			want:  []LangToken{
+				// Add the expected tokens for this test case
+			},
+			wantErr: false,
+		},
+		{
+			name:  "For Each Lambda Loop (forEachLambda)",
+			input: "for item in range(0, 5) -> (item) { print(item) }",
+			want:  []LangToken{
+				// Add the expected tokens for this test case
+			},
+			wantErr: false,
+		},
+		{
+			name:  "Classic While Loop (whileClassic)",
+			input: "let i = 0;while (i < 5) { print(i); i = i + 1 }",
+			want:  []LangToken{
+				// Add the expected tokens for this test case
+			},
+			wantErr: false,
+		},
+		{
+			name:  "Lambda While Loop (whileLambda)",
+			input: "let i = 0;while (i -> i < 5) { print(i); i = i + 1 }",
+			want:  []LangToken{
+				// Add the expected tokens for this test case
+			},
+			wantErr: false,
+		},
+		{
+			name:  "Classic Do-While Loop (doClassic)",
+			input: "let i = 0;do { print(i);i = i + 1 } while (i < 5)",
+			want:  []LangToken{
+				// Add the expected tokens for this test case
+			},
+			wantErr: false,
+		},
+		{
+			name:  "Lambda Do-While Loop (doLambda)",
+			input: "let i = 0;do { print(i); i = i + 1 } while (i -> i < 5)",
+			want:  []LangToken{
+				// Add the expected tokens for this test case
 			},
 			wantErr: false,
 		},
@@ -74,9 +138,23 @@ func TestLexer_NextToken(t *testing.T) {
 					t.Errorf("NextToken() error = %v, wantErr %v", err, tt.wantErr)
 					break
 				}
+				// Check if no tokens are expected and none are returned
+				if len(tt.want) == 0 {
+					if got != (LangToken{}) {
+						t.Errorf("NextToken() unexpected token, got = %v", got)
+					}
+					continue
+				}
+
+				// Compare the actual token with the expected token
 				if !reflect.DeepEqual(got, expected) {
 					t.Errorf("NextToken() got = %v, want %v", got, expected)
 				}
+			}
+			// Additionally, verify that no extra tokens are produced
+			extraToken, _ := l.NextToken()
+			if extraToken != (LangToken{}) {
+				t.Errorf("NextToken() produced extra token, got = %v", extraToken)
 			}
 		})
 	}
@@ -211,7 +289,7 @@ func TestLexer_readIdentifier(t *testing.T) {
 				position: tt.fields.position,
 				ch:       tt.fields.ch,
 			}
-			if got := l.readIdentifier(); got != tt.want {
+			if got, _ := l.readIdentifier(); got != tt.want {
 				t.Errorf("readIdentifier() = %v, want %v", got, tt.want)
 			}
 		})
