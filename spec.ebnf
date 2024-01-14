@@ -1,0 +1,83 @@
+identifier ::= letter (letter | digit)*
+number ::= digit+ ('.' digit+)?
+string ::= '"' character* '"'
+character ::= <any Unicode character except '"'>
+letter ::= [a-zA-Z_]
+digit ::= [0-9]
+
+expression ::= term (('+' | '-') term)* | ternaryExpression
+term ::= factor (('*' | '/') factor)*
+factor ::= number | identifier | '(' expression ')'
+
+ternaryExpression ::= traditionalTernary | arrowStyleTernary | colonPrefixedTernary | lambdaStyleTernary | inlineIfElseTernary
+traditionalTernary ::= expression '?' expression ':' expression
+arrowStyleTernary ::= expression '->' expression ':' expression
+colonPrefixedTernary ::= expression ':' expression '?' expression
+lambdaStyleTernary ::= '(' expression ')' '->' '{' expression '}' ':' '{' expression '}'
+inlineIfElseTernary ::= 'if' expression 'then' expression 'else' expression
+
+statement ::= variableDeclaration | functionCall | assignment | controlStatement | assemblyStatement
+variableDeclaration ::= 'let' identifier ('(' typeName ')' )? '=' expression
+functionCall ::= identifier '(' argumentList? ')'
+assignment ::= identifier '=' expression
+controlStatement ::= ifStatement | forStatement | whileStatement | doStatement | switchStatement
+
+function ::= 'function' identifier '(' parameterList? ')' (':' returnType)? '->' block
+returnType ::= typeName
+lambda ::= '(' parameterList? ')' '->' (expression | block)
+parameterList ::= parameter (',' parameter)*
+parameter ::= identifier (':' typeName)?
+argumentList ::= expression (',' expression)*
+block ::= '{' statement* '}'
+
+classDeclaration ::= classLambdaStyle | classTypeStyle
+classLambdaStyle ::= identifier '=>' '{' classMember* '}'
+classTypeStyle ::= 'type' identifier '{' classMember* '}'
+
+dataStructure ::= dataBraces | dataEquals | dataColon | tupleLike
+dataBraces ::= 'data' identifier '{' fieldList '}'
+dataEquals ::= identifier '=' 'data' '{' fieldList '}'
+dataColon ::= 'data' identifier ':' '{' fieldList '}'
+tupleLike ::= identifier '=' '{' fieldList '}'
+
+fieldList ::= 'let' field (',' field)*
+field ::= identifier
+classMember ::= variableDeclaration | methodDeclaration
+methodDeclaration ::= (returnType? identifier '(' parameterList? ')' '->' block)
+
+ifStatement ::= ifClassic | ifLambda
+ifClassic ::= 'if' '(' expression ')' block ('else' block)?
+ifLambda ::= 'if' lambda block ('else' lambda block)?
+
+forStatement ::= forClassic | forLambda | forEach | forEachLambda
+forClassic ::= 'for' '(' (variableDeclaration | assignment)? ';' expression ';' assignment ')' block
+forLambda ::= 'for' lambda block
+forEach ::= 'for' identifier 'in' 'range' '(' expression ',' expression ')' block
+forEachLambda ::= 'for' identifier 'in' 'range' '(' expression ',' expression ')' '->' lambda
+
+whileStatement ::= whileClassic | whileLambda
+whileClassic ::= 'while' '(' expression ')' block
+whileLambda ::= 'while' lambda block
+
+doStatement ::= doClassic | doLambda
+doClassic ::= 'do' block 'while' '(' expression ')'
+doLambda ::= 'do' block 'while' lambda
+
+switchStatement ::= 'switch' '(' expression ')' '{' switchCaseOrExpression* undefinedOrDefaultCase '}'
+switchCaseOrExpression ::= ('case'? expression ':' block)+
+undefinedOrDefaultCase ::= ('undefined' lambda | 'default') ':' block
+
+onConstruct ::= 'onConstruct' lambda
+onDestruct ::= 'onDestruct' lambda
+
+program ::= mainFunction (classDeclaration | function | dataStructure)*
+mainFunction ::= 'main' '()' '->' block
+
+assemblyStatement ::= 'asm' block
+
+assemblyBlock ::= 'asm' '{' assemblyCode '}'
+assemblyCode ::= stringLiteral
+
+comment ::= singleLineComment | multiLineComment
+singleLineComment ::= '//' character* <end-of-line>
+multiLineComment ::= '/*' character* '*/'
