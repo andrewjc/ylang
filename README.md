@@ -1,29 +1,22 @@
 An experimental language.
 
 ```
-  class PrimeFinder {
-      findPrimes(limit) -> {
-          let primes = [int];
-          for i in 2..limit {
-              if (isPrime(i)) primes.add(i);
-          }
-          return primes;
-      }
-  
-      isPrime(number) -> {
-          if (number <= 1) return false;
-          if (number <= 3) return true;
-          if (number % 2 == 0 || number % 3 == 0) return false;
-  
-          // Use a lambda expression for the loop logic
-          return !(5..sqrt(number)).any(i -> number % i == 0 || number % (i + 2) == 0);
-      }
+  generatePrimes(limit) -> {
+      // Use a lambda to generate prime numbers
+      (2..limit).filter(isPrime).forEach(emit);
   }
   
-  // Main function to use PrimeFinder
+  isPrime(number) -> {
+      if (number <= 1) return false;
+      if (number <= 3) return true;
+      if (number % 2 == 0 || number % 3 == 0) return false;
+      return !(5..sqrt(number)).any(i -> number % i == 0 || number % (i + 2) == 0);
+  }
+  
+  // Main function to generate and use prime numbers
   main() -> {
-      let finder(PrimeFinder);
-      finder.findPrimes(100).forEach(print);
+      let primes = generatePrimes(100); // Assuming 'emit' populates this list
+      primes.forEach(print);
   }
 ```
 
