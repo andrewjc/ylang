@@ -10,7 +10,14 @@ An experimental language.
           return primes;
       }
   
-      isPrime(number) -> number > 1 && (number <= 3 || !(number % 2 == 0 || number % 3 == 0) && !(for i in 5..sqrt(number), step 6 { if (number % i == 0 || number % (i + 2) == 0) return true; } true));
+      isPrime(number) -> {
+          if (number <= 1) return false;
+          if (number <= 3) return true;
+          if (number % 2 == 0 || number % 3 == 0) return false;
+  
+          // Use a lambda expression for the loop logic
+          return !(5..sqrt(number)).any(i -> number % i == 0 || number % (i + 2) == 0);
+      }
   }
   
   // Main function to use PrimeFinder
