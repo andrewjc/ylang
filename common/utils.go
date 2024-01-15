@@ -1,11 +1,11 @@
-package compiler
+package common
 
 import "unicode"
 
-func isLetter(ch rune) bool {
+func IsLetter(ch rune) bool {
 	return unicode.IsLetter(ch) || ch == '_'
 }
 
-func isDigit(ch rune) bool {
+func IsDigit(ch rune) bool {
 	return unicode.IsDigit(ch)
 }

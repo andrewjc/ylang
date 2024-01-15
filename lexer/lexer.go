@@ -1,7 +1,8 @@
-package compiler
+package lexer
 
 import (
 	"bufio"
+	"compiler/common"
 	"errors"
 	"fmt"
 	"os"
@@ -134,7 +135,7 @@ func (l *Lexer) NextToken() (LangToken, error) {
 		tok.Literal = l.readString()
 	case 'a':
 		// Check for the 'asm' keyword
-		if l.peekChar() == 's' && l.peekCharAtIndex(2) == 'm' && !isLetter(l.peekCharAtIndex(3)) {
+		if l.peekChar() == 's' && l.peekCharAtIndex(2) == 'm' && !common.IsLetter(l.peekCharAtIndex(3)) {
 			tok.Literal = l.readAssembly()
 			tok.Type = TokenTypeAssembly
 			return tok, nil
@@ -147,7 +148,7 @@ func (l *Lexer) NextToken() (LangToken, error) {
 		if l.peekChar() == 'u' && l.peekCharAtIndex(2) == 'n' &&
 			l.peekCharAtIndex(3) == 'c' && l.peekCharAtIndex(4) == 't' &&
 			l.peekCharAtIndex(5) == 'i' && l.peekCharAtIndex(6) == 'o' &&
-			l.peekCharAtIndex(7) == 'n' && !isLetter(l.peekCharAtIndex(8)) {
+			l.peekCharAtIndex(7) == 'n' && !common.IsLetter(l.peekCharAtIndex(8)) {
 			tok.Literal = l.readFunction()
 			tok.Type = TokenTypeFunction
 			return tok, nil
@@ -157,13 +158,13 @@ func (l *Lexer) NextToken() (LangToken, error) {
 		return LangToken{Type: tokType, Literal: literal}, nil
 	case 'i':
 		// Check for the 'if' keyword
-		if l.peekChar() == 'f' && !isLetter(l.peekCharAtIndex(2)) {
+		if l.peekChar() == 'f' && !common.IsLetter(l.peekCharAtIndex(2)) {
 			tokType, literal := l.readIdentifier()
 			tok.Literal = literal
 			tok.Type = tokType
 			return tok, nil
 		}
-		if l.peekChar() == 'n' && !isLetter(l.peekCharAtIndex(2)) {
+		if l.peekChar() == 'n' && !common.IsLetter(l.peekCharAtIndex(2)) {
 			tokType, literal := l.readIdentifier()
 			tok.Literal = literal
 			tok.Type = tokType
@@ -173,10 +174,10 @@ func (l *Lexer) NextToken() (LangToken, error) {
 		tokType, literal := l.readIdentifier()
 		return LangToken{Type: tokType, Literal: literal}, nil
 	default:
-		if isLetter(l.ch) {
+		if common.IsLetter(l.ch) {
 			tokType, literal := l.readIdentifier()
 			return LangToken{Type: tokType, Literal: literal}, nil
-		} else if isDigit(l.ch) {
+		} else if common.IsDigit(l.ch) {
 			tok.Type = TokenTypeNumber
 			tok.Literal = l.readNumber()
 			return tok, nil
@@ -228,7 +229,7 @@ func (l *Lexer) skipWhitespace() {
 
 func (l *Lexer) readIdentifier() (TokenType, string) {
 	var identBuilder strings.Builder
-	for isLetter(l.ch) || isDigit(l.ch) {
+	for common.IsLetter(l.ch) || common.IsDigit(l.ch) {
 		identBuilder.WriteRune(l.ch)
 		l.readChar()
 	}
@@ -243,7 +244,7 @@ func (l *Lexer) readNumber() string {
 	var numBuilder strings.Builder
 	hasDecimal := false
 
-	for isDigit(l.ch) || (l.ch == '.' && !hasDecimal) {
+	for common.IsDigit(l.ch) || (l.ch == '.' && !hasDecimal) {
 		if l.ch == '.' {
 			hasDecimal = true
 		}
@@ -269,6 +270,8 @@ func (l *Lexer) readString() string {
 }
 
 func (l *Lexer) readAssembly() string {
+	l.skipWhitespace() // Skip leading whitespace before reading assembly instruction
+
 	var asmBuilder strings.Builder
 	for !unicode.IsSpace(l.ch) && l.ch != 0 {
 		asmBuilder.WriteRune(l.ch)
