@@ -1,57 +1,88 @@
-An experimental language.
+# Y-Lang
+An experimental programming language that steals features from all my favourite languages.
 
+## 1. Function Definitions
+
+### Complex Lambda Functions
 ```
-  generatePrimes(limit) -> {
-      // Use a lambda to generate prime numbers
-      (2..limit).filter(isPrime).forEach(emit);
-  }
-  
-  isPrime(number) -> {
-      if (number <= 1) return false;
-      if (number <= 3) return true;
-      if (number % 2 == 0 || number % 3 == 0) return false;
-      return !(5..sqrt(number)).any(i -> number % i == 0 || number % (i + 2) == 0);
-  }
-  
-  // Main function to generate and use prime numbers
-  main() -> {
-      let primes = generatePrimes(100); // Assuming 'emit' populates this list
-      primes.forEach(print);
-  }
+let complexLambda = (x, y) -> {
+    let result = x * y;
+    return result;
+};
+
+// Usage of lambda in a function
+function calculate(input) -> {
+    return complexLambda(input, input + 10);
+}
 ```
 
+### Lambda in Ternary Expressions
 ```
-  class EchoServer {
-      let port;
-  
-      constructor(port) -> {
-          this.port = port;
-          // Constructor implicitly returns 'this'.
-      }
-  
-      listen() -> {
-          let server = TcpServer(this.port);
-          server.onClientConnected = client -> {
-              let data = client.read();
-              client.write(data);
-              client.close();
-          };
-          server.listen();
-      }
-  }
-  
-  // Main function to start the EchoServer
-  main() -> {
-    let server(EchoServer, 8080) -> lambda (x) -> x.listen();
-  }
+let lambdaTernary = (condition) -> {
+    return condition ? (x -> x * 2) : (x -> x / 2);
+};
+
+// Usage example
+let result = lambdaTernary(true)(5);
 ```
 
-
+### Inline If-Else Ternary
 ```
-  class ResourceHandler {
+let inlineTernary = if x > 10 then (x -> x * 2) else (x -> x - 5);
+let result = inlineTernary(12); // Should return 24
+```
+
+## 2. Class Declarations
+
+### Class with Lambda Style Methods
+```
+type MyClass {
+    let value = 10;
+
+    increase = (amount) -> {
+        this.value += amount;
+    };
+
+    decrease = (amount) -> {
+        this.value -= amount;
+    };
+}
+```
+
+### Data Structures
+```
+data MyData {
+    let attributeOne, let attributeTwo
+};
+
+let myDataInstance = MyData { attributeOne = "Value1", attributeTwo = "Value2" };
+```
+
+## 3. Control Structures
+
+### Lambda in For Loops
+```
+for i in range(0, 10) -> lambda (i) {
+    print("Value: " + i);
+}
+```
+
+### If Statement with Lambda
+```
+if (x > 5) -> {
+    print("x is greater than 5");
+} else -> {
+    print("x is less or equal to 5");
+}
+```
+
+## 4. Special Constructs
+
+### Resource Management with Lambdas
+```
+class ResourceHandler {
     constructor(resource) -> {
         this.resource = resource;
-        // Implicit 'this' returned.
     }
 
     onConstruct(lambdaAction) -> {
@@ -60,222 +91,73 @@ An experimental language.
     }
 
     onDestruct(lambdaAction) -> {
-        // Register lambdaAction to be called upon destruction
-        // Implementation details depend on language's memory model and destructors
+        lambdaAction(this);
     }
 
     useResource() -> {
-        // Use the resource in some way
+        print("Using resource: " + this.resource);
     }
 }
 
-  // Main function to demonstrate ResourceHandler
-  main() -> {
-      let handler(ResourceHandler, "some_resource")
-          -> onConstruct(lambda (x) -> print("Constructed with resource: " + x.resource))
-          -> onDestruct(lambda (x) -> print("Destructing, releasing resource: " + x.resource));
-  
-      handler.useResource();
-      // 'onDestruct' lambda will be called when 'handler' goes out of scope or is explicitly destroyed
-  }
+// Usage example
+let handler = ResourceHandler("Resource1")
+    -> onConstruct((x) -> print("Constructed with resource: " + x.resource))
+    -> onDestruct((x) -> print("Destructing, releasing resource: " + x.resource));
+
+handler.useResource();
 ```
 
-## 1. Expressions and Terms
-- **Identifiers and Numbers**: 
-  ``` 
-  let playerScore = 1200
-  let playerName = "Hero123"
-  ```
-
-- **String with Characters**:
-  ```
-  let gameTitle = "Space Adventure"
-  ```
-
-- **Expression with Terms**:
-  ```
-  let totalScore = playerScore + (50 * 2) - 300
-  ```
-
-## 2. Ternary Expressions
-- **Traditional Ternary**:
-  ```
-  let isGameOver = (playerLives == 0) ? true : false
-  ```
-
-- **Arrow Style Ternary**:
-  ```
-  let nextLevel = (currentLevel -> currentLevel + 1 : currentLevel)
-  ```
-
-- **Colon Prefixed Ternary**:
-  ```
-  let bonusPoints = (score > 1000 : 100 ? 50)
-  ```
-
-- **Lambda Style Ternary**:
-  ```
-  let healthStatus = (playerHealth) -> { "Good" } : { "Critical" }
-  ```
-
-- **Inline If-Else Ternary**:
-  ```
-  let movement = if keyPressed == "left" then moveLeft() else moveRight()
-  ```
-
-## 3. Statements
-- **Variable Declaration**:
-  ```
-  let currentLevel(int) = 1
-  ```
-
-- **Function Call**:
-  ```
-  updateScore(500)
-  ```
-
-- **Assignment**:
-  ```
-  playerHealth = playerHealth - damageTaken
-  ```
-
-- **Control Statement** (If Statement):
-  ```
-  if (playerHealth <= 0) {
-      gameOver()
-  } else {
-      continueGame()
-  }
-  ```
-
-- **Assembly Statement**:
-  ```
-  asm {
-    "mov eax, 600h" // Set graphics mode
-  }
-  ```
-
-## 4. Function Definition
-- **Game Loop Function**:
-  ```
-  function gameLoop() -> {
-      processInput()
-      updateGame()
-      renderGraphics()
-  }
-  ```
-
-## 5. Class Declaration for Game Components
-- **Class Type Style**:
-  ```
-  type Player {
-      let health = 100
-      function takeDamage(int amount) -> {
-          health -= amount
-      }
-  }
-  ```
-
-## 6. Data Structures for Game Settings
-- **Data Braces Style**:
-  ```
-  data GameSettings {
-      let difficulty, let soundLevel
-  }
-  ```
-
-## 7. Complex Control Structures
-- **For Loop for NPC Movement**:
-  ```
-  for npc in range(0, npcCount) {
-      moveNPC(npc)
-  }
-  ```
-
-- **While Loop for Main Game Loop**:
-  ```
-  while (gameRunning) {
-      gameLoop()
-  }
-  ```
-
-## 8. Special Constructs
-- **OnConstruct and OnDestruct for Resource Management**:
-  ```
-  onConstruct {
-      loadResources()
-  }
-  onDestruct {
-      freeResources()
-  }
-  ```
-
-## 9. Complete Program Example
-- **Main Function**:
-  ```
-  main() {
-      initializeGame()
-      while (!isGameOver) {
-          gameLoop()
-      }
-  }
-  ```
-
-## Basic Variable Declaration
+## 5. Program Structure
+Main Function with Complex Lambdas
 ```
-let playerHealth = 100
-let levelName = "Forest Realm"
-let isPaused = false
-```
-
-## Variable Declaration with Type Annotation
-```
-let score(int) = 0
-let playerName(string) = "Knight47"
-let gameActive(bool) = true
-```
-
-## Variable Declaration with Initial Complex Expressions
-```
-let maxHealth = 100 + (level * 10)
-let finalScore = baseScore + (bonus * multiplier)
-let nextPosition = currentPosition + moveVector
-```
-
-## Variable Declaration in Control Structures
-```
-if (isNewHighScore) {
-    let congratulationsMessage = "New High Score!"
-}
-
-for (let i = 0; i < enemyCount; i++) {
-    let enemyType = determineEnemyType(i)
+main() -> {
+    let process = (input) -> {
+      return input * 2;
+    };
+    
+    let values = [1, 2, 3, 4, 5];
+    values.map(process).forEach(print);
 }
 ```
 
-## Variable Declaration in Functions
+## 6. Advanced Ternary Expressions
+Arrow Style Ternary
 ```
-function calculateDamage(int base, int modifier) -> int {
-    let damage = base + (modifier * 2)
-    return damage
-}
+let arrowTernary = x > 5 -> "Greater" : "Less or Equal";
 ```
 
-## Variable Declaration in Classes
+Lambda Style Ternary
 ```
-type Player {
-    let health = 100
-    let energy = 50
-    function heal(int amount) -> {
-        health += amount
+let complexTernary = (x > 5) -> { x * 2 } : { x / 2 };
+```
+
+## 7. Assembly Integration
+Inline Assembly Statement
+```
+function performLowLevelOperation() -> {
+    asm {
+        "mov eax, 1" // Example assembly instruction
     }
 }
 ```
 
-## Variable Declaration in Data Structures
+## 8. Extended Lambda Usage
+Lambda in Variable Declaration
 ```
-data GameSettings {
-    let difficulty = "Normal"
-    let soundLevel = 70
+let myLambda = (x, y) -> x + y;
+let result = myLambda(5, 10); // Should return 15
+```
+
+Lambda in Control Statement
+```
+if ((x, y) -> x == y)(5, 5) {
+    print("x and y are equal");
 }
+```
+
+## 9. Data Structures
+Tuple-like Data Structure
+```
+MyTuple = { let first, let second };
+let myTupleInstance = MyTuple { first = "Hello", second = "World" };
 ```
