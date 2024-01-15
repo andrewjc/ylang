@@ -25,6 +25,8 @@ const (
 	SUM     int = 2 // +
 	PRODUCT int = 3 // *
 	TERNARY int = 4 // Ternary expressions
+	ARRAY   int = 5 // Array literals
+	DOT     int = 6 // Dot operator
 	// Define other precedence levels
 )
 
@@ -35,6 +37,8 @@ var precedences = map[TokenType]int{
 	TokenTypeMultiply:     PRODUCT,
 	TokenTypeDivide:       PRODUCT,
 	TokenTypeQuestionMark: TERNARY,
+	TokenTypeLeftBracket:  ARRAY,
+	TokenTypeDot:          DOT,
 	// Add other operators and their precedences
 }
 
@@ -54,6 +58,7 @@ func NewParser(lexer *Lexer) *Parser {
 	parser.registerInfix(TokenTypeQuestionMark, parser.parseTraditionalTernaryExpression)
 	parser.registerInfix(TokenTypeLambdaArrow, parser.parseLambdaStyleTernaryExpression)
 	parser.registerInfix(TokenTypeIf, parser.parseInlineIfElseTernaryExpression)
+	parser.registerInfix(TokenTypeDot, parser.parseDotOperator)
 
 	// Add other infix operators here
 
@@ -106,25 +111,27 @@ func (p *Parser) parseExpression(precedence int) ast.ExpressionNode {
 
 	switch p.currentToken.Type {
 	case TokenTypeNumber:
-		return p.parseNumberLiteral()
+		leftExp = p.parseNumberLiteral()
 	case TokenTypeString:
-		return p.parseStringLiteral()
+		leftExp = p.parseStringLiteral()
 	case TokenTypeIdentifier:
-		return p.parseIdentifier()
+		leftExp = p.parseIdentifier()
 	case TokenTypeLeftParenthesis:
-		return p.parseParenExpression()
+		leftExp = p.parseParenthesisExpression()
+	case TokenTypeLeftBracket:
+		leftExp = p.parseArrayLiteral()
 	case TokenTypeQuestionMark:
-		return p.parseTraditionalTernaryExpression(leftExp)
+		leftExp = p.parseTraditionalTernaryExpression(leftExp)
 	case TokenTypeLambdaArrow:
-		return p.parseLambdaStyleTernaryExpression(leftExp)
+		leftExp = p.parseLambdaStyleTernaryExpression(leftExp)
 	case TokenTypeIf:
-		return p.parseInlineIfElseTernaryExpression(leftExp)
+		leftExp = p.parseInlineIfElseTernaryExpression(leftExp)
 	case TokenTypeLet:
-		return p.parseVariableDeclaration()
+		leftExp = p.parseVariableDeclaration()
 	case TokenTypeAssignment:
-		return p.parseAssignmentStatement()
+		leftExp = p.parseAssignmentStatement()
 	case TokenTypeLeftBrace:
-		return p.parseBlockStatement()
+		leftExp = p.parseBlockStatement()
 	}
 
 	for !p.peekTokenIs(TokenTypeSemicolon) && precedence < p.peekPrecedence() {
@@ -157,6 +164,52 @@ func (p *Parser) parseStatement() ast.Statement {
 	}
 }
 
+func (p *Parser) parseDotOperator(left ast.ExpressionNode) ast.ExpressionNode {
+	exp := &ast.MemberAccessExpression{
+		Token: p.currentToken,
+		Left:  left,
+	}
+
+	p.nextToken()
+	if !p.currentTokenIs(TokenTypeIdentifier) {
+		// Error handling: Expecting an identifier after '.'
+		return nil
+	}
+
+	exp.Member = p.currentToken.Literal
+	p.nextToken()
+	return exp
+}
+
+func (p *Parser) parseArrayLiteral() ast.ExpressionNode {
+	arrayLit := &ast.ArrayLiteral{Token: p.currentToken}
+	arrayLit.Elements = []ast.ExpressionNode{}
+
+	// Skip the opening bracket
+	p.nextToken()
+
+	// Parse elements until we reach a closing bracket
+	for !p.currentTokenIs(TokenTypeRightBracket) {
+		elem := p.parseExpression(LOWEST)
+		if elem != nil {
+			arrayLit.Elements = append(arrayLit.Elements, elem)
+		}
+
+		// Move to the next token, which should be a comma or a closing bracket
+		p.nextToken()
+		if p.currentTokenIs(TokenTypeComma) {
+			p.nextToken() // Skip comma
+		}
+	}
+
+	// Ensure we have a closing bracket
+	if !p.expectPeek(TokenTypeRightBracket) {
+		return nil // Error handling for missing closing bracket
+	}
+
+	return arrayLit
+}
+
 func (p *Parser) parseNumberLiteral() ast.ExpressionNode {
 	lit := &ast.NumberLiteral{Token: p.currentToken}
 
@@ -186,7 +239,7 @@ func (p *Parser) parseIdentifier() ast.ExpressionNode {
 	}
 }
 
-func (p *Parser) parseParenExpression() ast.ExpressionNode {
+func (p *Parser) parseParenthesisExpression() ast.ExpressionNode {
 	p.nextToken()
 	exp := p.parseExpression(LOWEST)
 

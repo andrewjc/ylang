@@ -117,6 +117,10 @@ func (l *Lexer) NextToken() (LangToken, error) {
 		tok = newToken(TokenTypeLeftBrace, l.ch)
 	case '}':
 		tok = newToken(TokenTypeRightBrace, l.ch)
+	case '[':
+		tok = newToken(TokenTypeLeftBracket, l.ch)
+	case ']':
+		tok = newToken(TokenTypeRightBracket, l.ch)
 	case ',':
 		tok = newToken(TokenTypeComma, l.ch)
 	case ';':
@@ -173,6 +177,8 @@ func (l *Lexer) NextToken() (LangToken, error) {
 		// If not 'if' or 'in', treat it as an identifier
 		tokType, literal := l.readIdentifier()
 		return LangToken{Type: tokType, Literal: literal}, nil
+	case '.':
+		tok = newToken(TokenTypeDot, l.ch)
 	default:
 		if common.IsLetter(l.ch) {
 			tokType, literal := l.readIdentifier()
