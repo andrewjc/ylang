@@ -2,6 +2,7 @@ package compiler
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -13,6 +14,7 @@ type Lexer struct {
 	position   int
 	ch         rune
 	peekBuffer []rune
+	eof        bool
 }
 
 func NewLexer(inputFile string) (*Lexer, error) {
@@ -67,12 +69,17 @@ func (l *Lexer) readChar() {
 func (l *Lexer) NextToken() (LangToken, error) {
 	var tok LangToken
 
+	if l.eof {
+		return LangToken{}, errors.New("no more tokens, reached end of file")
+	}
+
 	l.skipWhitespace()
 
 	switch l.ch {
 	case 0: // Handling EOF
 		tok.Literal = ""
 		tok.Type = TokenTypeEOF
+		l.eof = true
 		return tok, nil
 	case '=':
 		if l.peekChar() == '>' {
@@ -91,7 +98,12 @@ func (l *Lexer) NextToken() (LangToken, error) {
 	case '+':
 		tok = newToken(TokenTypePlus, l.ch)
 	case '-':
-		tok = newToken(TokenTypeMinus, l.ch)
+		if l.peekChar() == '>' {
+			tok = LangToken{Type: TokenTypeLambdaArrow, Literal: "->"}
+			l.readChar() // Consume '>'
+		} else {
+			tok = newToken(TokenTypeMinus, l.ch)
+		}
 	case '*':
 		tok = newToken(TokenTypeMultiply, l.ch)
 	case '/':
@@ -108,6 +120,15 @@ func (l *Lexer) NextToken() (LangToken, error) {
 		tok = newToken(TokenTypeComma, l.ch)
 	case ';':
 		tok = newToken(TokenTypeSemicolon, l.ch)
+	case '<':
+		if l.peekChar() == '=' {
+			tok = newToken(TokenTypeLessThanEqual, l.ch)
+			l.readChar() // Consume '='
+		} else {
+			tok = newToken(TokenTypeLessThan, l.ch)
+		}
+	case '>':
+		tok = newToken(TokenTypeGreaterThan, l.ch)
 	case '"':
 		tok.Type = TokenTypeString
 		tok.Literal = l.readString()
@@ -132,6 +153,23 @@ func (l *Lexer) NextToken() (LangToken, error) {
 			return tok, nil
 		}
 		// If not 'function', treat it as an identifier
+		tokType, literal := l.readIdentifier()
+		return LangToken{Type: tokType, Literal: literal}, nil
+	case 'i':
+		// Check for the 'if' keyword
+		if l.peekChar() == 'f' && !isLetter(l.peekCharAtIndex(2)) {
+			tokType, literal := l.readIdentifier()
+			tok.Literal = literal
+			tok.Type = tokType
+			return tok, nil
+		}
+		if l.peekChar() == 'n' && !isLetter(l.peekCharAtIndex(2)) {
+			tokType, literal := l.readIdentifier()
+			tok.Literal = literal
+			tok.Type = tokType
+			return tok, nil
+		}
+		// If not 'if' or 'in', treat it as an identifier
 		tokType, literal := l.readIdentifier()
 		return LangToken{Type: tokType, Literal: literal}, nil
 	default:

@@ -18,6 +18,9 @@ const (
 	TokenTypeMinus            TokenType = "Minus"
 	TokenTypeMultiply         TokenType = "Multiply"
 	TokenTypeDivide           TokenType = "Divide"
+	TokenTypeLessThan         TokenType = "LessThan"
+	TokenTypeLessThanEqual    TokenType = "LessThanEqual"
+	TokenTypeGreaterThan      TokenType = "GreaterThan"
 	TokenTypeLeftParenthesis  TokenType = "LeftParenthesis"
 	TokenTypeRightParenthesis TokenType = "RightParenthesis"
 	TokenTypeLeftBrace        TokenType = "LeftBrace"
@@ -27,10 +30,13 @@ const (
 	TokenTypeColon            TokenType = "Colon"
 	TokenTypeQuestionMark     TokenType = "QuestionMark"
 	TokenTypeArrow            TokenType = "Arrow"
+	TokenTypeLambdaArrow      TokenType = "LambdaArrow"
 	TokenTypeIf               TokenType = "If"
 	TokenTypeElse             TokenType = "Else"
 	TokenTypeFor              TokenType = "For"
 	TokenTypeWhile            TokenType = "While"
+	TokenTypeIn               TokenType = "In"
+	TokenTypeRange            TokenType = "Range"
 	TokenTypeDo               TokenType = "Do"
 	TokenTypeSwitch           TokenType = "Switch"
 	TokenTypeCase             TokenType = "Case"
@@ -51,6 +57,9 @@ var Keywords = map[string]TokenType{
 	"function": TokenTypeFunction,
 	"let":      TokenTypeLet,
 	"if":       TokenTypeIf,
+	"in":       TokenTypeIn,
+	"range":    TokenTypeRange,
+	"->":       TokenTypeLambdaArrow,
 	"else":     TokenTypeElse,
 	"for":      TokenTypeFor,
 	"while":    TokenTypeWhile,
