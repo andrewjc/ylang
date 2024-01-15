@@ -12,7 +12,6 @@ factor ::= number | identifier | '(' expression ')'
 ternaryExpression ::= traditionalTernary | arrowStyleTernary | colonPrefixedTernary | lambdaStyleTernary | inlineIfElseTernary
 traditionalTernary ::= expression '?' expression ':' expression
 arrowStyleTernary ::= expression '->' expression ':' expression
-colonPrefixedTernary ::= expression ':' expression '?' expression
 lambdaStyleTernary ::= '(' expression ')' '->' '{' expression '}' ':' '{' expression '}'
 inlineIfElseTernary ::= 'if' expression 'then' expression 'else' expression
 

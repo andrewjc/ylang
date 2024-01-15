@@ -32,6 +32,7 @@ const (
 	TokenTypeArrow            TokenType = "Arrow"
 	TokenTypeLambdaArrow      TokenType = "LambdaArrow"
 	TokenTypeIf               TokenType = "If"
+	TokenTypeThen             TokenType = "Then"
 	TokenTypeElse             TokenType = "Else"
 	TokenTypeFor              TokenType = "For"
 	TokenTypeWhile            TokenType = "While"
@@ -61,6 +62,7 @@ var Keywords = map[string]TokenType{
 	"range":    TokenTypeRange,
 	"->":       TokenTypeLambdaArrow,
 	"else":     TokenTypeElse,
+	"then":     TokenTypeThen,
 	"for":      TokenTypeFor,
 	"while":    TokenTypeWhile,
 	"do":       TokenTypeDo,

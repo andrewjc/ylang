@@ -71,7 +71,7 @@ func (l *Lexer) NextToken() (LangToken, error) {
 	var tok LangToken
 
 	if l.eof {
-		return LangToken{}, errors.New("no more tokens, reached end of file")
+		return LangToken{Type: TokenTypeEOF}, errors.New("no more tokens, reached end of file")
 	}
 
 	l.skipWhitespace()
@@ -130,7 +130,7 @@ func (l *Lexer) NextToken() (LangToken, error) {
 		}
 	case '>':
 		tok = newToken(TokenTypeGreaterThan, l.ch)
-	case '"':
+	case '"', '`', '\'':
 		tok.Type = TokenTypeString
 		tok.Literal = l.readString()
 	case 'a':
@@ -238,35 +238,6 @@ func (l *Lexer) readIdentifier() (TokenType, string) {
 		return tokType, ident
 	}
 	return TokenTypeIdentifier, ident
-}
-
-func (l *Lexer) readNumber() string {
-	var numBuilder strings.Builder
-	hasDecimal := false
-
-	for common.IsDigit(l.ch) || (l.ch == '.' && !hasDecimal) {
-		if l.ch == '.' {
-			hasDecimal = true
-		}
-		numBuilder.WriteRune(l.ch)
-		l.readChar()
-	}
-
-	if hasDecimal && numBuilder.Len() == 1 { // Handle single '.' as an error or different token
-		return "." // Or handle appropriately, e.g., return an error or a different token type
-	}
-
-	return numBuilder.String()
-}
-
-func (l *Lexer) readString() string {
-	var strBuilder strings.Builder
-	l.readChar() // Consume the opening double quote
-	for l.ch != '"' && l.ch != 0 {
-		strBuilder.WriteRune(l.ch)
-		l.readChar()
-	}
-	return strBuilder.String()
 }
 
 func (l *Lexer) readAssembly() string {
