@@ -6,6 +6,20 @@ import (
 	"fmt"
 )
 
+func (p *Parser) isTernary() bool {
+	return p.currentTokenIs(TokenTypeQuestionMark)
+}
+
+func (p *Parser) parseTernaryExpression(exp ast.ExpressionNode) ast.ExpressionNode {
+	ternary := &ast.TraditionalTernaryExpression{
+		Token:     LangToken{},
+		Condition: nil,
+		TrueExpr:  nil,
+		FalseExpr: nil,
+	}
+	return ternary
+}
+
 func (p *Parser) parseTraditionalTernaryExpression(condition ast.ExpressionNode) ast.ExpressionNode {
 	expression := &ast.TraditionalTernaryExpression{
 		Token:     p.currentToken,

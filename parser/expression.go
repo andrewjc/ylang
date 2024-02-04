@@ -5,17 +5,6 @@ import (
 	. "compiler/lexer"
 )
 
-func (p *Parser) parseExpressionStatement() *ast.ExpressionStatement {
-	stmt := &ast.ExpressionStatement{Token: p.currentToken}
-	stmt.Expression = p.parseExpression(LOWEST)
-
-	if p.peekTokenIs(TokenTypeSemicolon) {
-		p.nextToken()
-	}
-
-	return stmt
-}
-
 func (p *Parser) parseExpression(precedence int) ast.ExpressionNode {
 	// Initial expression parsing based on the current token
 	var leftExp ast.ExpressionNode
@@ -63,4 +52,31 @@ func (p *Parser) parseExpression(precedence int) ast.ExpressionNode {
 
 	}
 	return leftExp
+}
+
+func (p *Parser) parseStatement() ast.Statement {
+	switch p.currentToken.Type {
+	case TokenTypeLet:
+		return p.parseVariableDeclaration()
+	case TokenTypeIf:
+		if p.peekTokenIs(TokenTypeLeftParenthesis) {
+			return p.parseIfStatement()
+		} else {
+			return p.parseLambdaIfStatement()
+		}
+	// Include other cases for different statement types
+	default:
+		return p.parseExpressionStatement() // Default to expression statement
+	}
+}
+
+func (p *Parser) parseExpressionStatement() *ast.ExpressionStatement {
+	stmt := &ast.ExpressionStatement{Token: p.currentToken}
+	stmt.Expression = p.parseExpression(LOWEST)
+
+	if p.peekTokenIs(TokenTypeSemicolon) {
+		p.nextToken()
+	}
+
+	return stmt
 }

@@ -4,7 +4,6 @@ import (
 	"compiler/ast"
 	. "compiler/lexer"
 	"fmt"
-	"strconv"
 )
 
 // Parser represents a parser with an associated lexer, current token and a peek token.
@@ -114,22 +113,6 @@ func (p *Parser) currentTokenIs(t TokenType) bool {
 	return p.currentToken.Type == t
 }
 
-func (p *Parser) parseStatement() ast.Statement {
-	switch p.currentToken.Type {
-	case TokenTypeLet:
-		return p.parseVariableDeclaration()
-	case TokenTypeIf:
-		if p.peekTokenIs(TokenTypeLeftParenthesis) {
-			return p.parseIfStatement()
-		} else {
-			return p.parseLambdaIfStatement()
-		}
-	// Include other cases for different statement types
-	default:
-		return p.parseExpressionStatement() // Default to expression statement
-	}
-}
-
 func (p *Parser) parseDotOperator(left ast.ExpressionNode) ast.ExpressionNode {
 	exp := &ast.MemberAccessExpression{
 		Token: p.currentToken,
@@ -147,72 +130,11 @@ func (p *Parser) parseDotOperator(left ast.ExpressionNode) ast.ExpressionNode {
 	return exp
 }
 
-func (p *Parser) parseArrayLiteral() ast.ExpressionNode {
-	arrayLit := &ast.ArrayLiteral{Token: p.currentToken}
-	arrayLit.Elements = []ast.ExpressionNode{}
-
-	// Skip the opening bracket
-	p.nextToken()
-
-	// Parse elements until we reach a closing bracket
-	for !p.currentTokenIs(TokenTypeRightBracket) {
-		elem := p.parseExpression(LOWEST)
-		if elem != nil {
-			arrayLit.Elements = append(arrayLit.Elements, elem)
-		}
-
-		// Move to the next token, which should be a comma or a closing bracket
-		p.nextToken()
-		if p.currentTokenIs(TokenTypeComma) {
-			p.nextToken() // Skip comma
-		}
-	}
-
-	// Ensure we have a closing bracket
-	if err := p.expectPeek(TokenTypeRightBracket); err != nil {
-		fmt.Println(err)
-		return nil
-	}
-	return arrayLit
-}
-
-func (p *Parser) parseNumberLiteral() ast.ExpressionNode {
-	lit := &ast.NumberLiteral{Token: p.currentToken}
-
-	value, err := strconv.ParseFloat(p.currentToken.Literal, 64)
-	if err != nil {
-		// Handle error; could log or set an error on the parser
-		return nil
-	}
-
-	lit.Value = value
-	return lit
-}
-
-func (p *Parser) parseStringLiteral() ast.ExpressionNode {
-	lit := &ast.StringLiteral{Token: p.currentToken}
-
-	lit.Value = p.currentToken.Literal
-	return lit
-}
-
 func (p *Parser) parseIdentifier() ast.ExpressionNode {
 	return &ast.Identifier{
 		Token: p.currentToken,
 		Value: p.currentToken.Literal,
 	}
-}
-
-func (p *Parser) parseParenthesisExpression() ast.ExpressionNode {
-	p.nextToken()
-	exp := p.parseExpression(LOWEST)
-
-	if err := p.expectPeek(TokenTypeRightParenthesis); err != nil {
-		fmt.Println(err)
-		return nil
-	}
-
-	return exp
 }
 
 func (p *Parser) expectPeek(t TokenType) *ParserError {
@@ -263,22 +185,4 @@ func (p *Parser) currentPrecedence() int {
 		return p
 	}
 	return LOWEST
-}
-
-func (p *Parser) isFunctionDefinition() bool {
-	return p.peekTokenIs(TokenTypeLeftParenthesis)
-}
-
-func (p *Parser) isTernary() bool {
-	return p.peekTokenIs(TokenTypeQuestionMark)
-}
-
-func (p *Parser) parseTernaryExpression(exp ast.ExpressionNode) ast.ExpressionNode {
-	ternary := &ast.TraditionalTernaryExpression{
-		Token:     LangToken{},
-		Condition: nil,
-		TrueExpr:  nil,
-		FalseExpr: nil,
-	}
-	return ternary
 }
