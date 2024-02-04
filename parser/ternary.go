@@ -3,6 +3,7 @@ package parser
 import (
 	"compiler/ast"
 	. "compiler/lexer"
+	"fmt"
 )
 
 func (p *Parser) parseTraditionalTernaryExpression(condition ast.ExpressionNode) ast.ExpressionNode {
@@ -14,7 +15,8 @@ func (p *Parser) parseTraditionalTernaryExpression(condition ast.ExpressionNode)
 	p.nextToken() // Skip '?'
 	expression.TrueExpr = p.parseExpression(LOWEST)
 
-	if !p.expectPeek(TokenTypeColon) {
+	if err := p.expectPeek(TokenTypeColon); err != nil {
+		fmt.Println(err)
 		return nil // Error handling; expected a colon
 	}
 
@@ -36,7 +38,8 @@ func (p *Parser) parseLambdaStyleTernaryExpression(condition ast.ExpressionNode)
 	p.nextToken() // Skip '->'
 	expression.TrueExpr = p.parseExpression(LOWEST)
 
-	if !p.expectPeek(TokenTypeColon) {
+	if err := p.expectPeek(TokenTypeColon); err != nil {
+		fmt.Println(err)
 		return nil // Error handling; expected a colon
 	}
 
@@ -59,14 +62,16 @@ func (p *Parser) parseInlineIfElseTernaryExpression(condition ast.ExpressionNode
 
 	//expression.Condition = p.parseExpression(LOWEST)
 
-	if !p.expectPeek(TokenTypeThen) {
+	if err := p.expectPeek(TokenTypeThen); err != nil {
+		fmt.Println(err)
 		return nil // Error handling; expected 'then'
 	}
 
 	p.nextToken()
 	expression.TrueExpr = p.parseExpression(LOWEST)
 
-	if !p.expectPeek(TokenTypeElse) {
+	if err := p.expectPeek(TokenTypeElse); err != nil {
+		fmt.Println(err)
 		return nil // Error handling; expected 'else'
 	}
 

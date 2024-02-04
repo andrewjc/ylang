@@ -11,7 +11,7 @@ func TestSimpleMain(t *testing.T) {
 	lexer, _ := lexer.NewLexerFromString(input)
 	parser := NewParser(lexer)
 
-	program := parser.ParseProgram() // Assuming you have a method to parse the entire program
+	program := parser.ParseProgram()
 	if len(program.Statements) != 1 {
 		t.Fatalf("program has not enough statements. got=%d", len(program.Statements))
 	}

@@ -5,6 +5,8 @@ type TokenType string
 type LangToken struct {
 	Type    TokenType // LangToken type
 	Literal string    // LangToken literal
+	Line    int
+	Pos     int
 }
 
 const (

@@ -3,23 +3,27 @@ package parser
 import (
 	"compiler/ast"
 	. "compiler/lexer"
+	"fmt"
 )
 
 func (p *Parser) parseIfStatement() *ast.IfStatement {
 	stmt := &ast.IfStatement{Token: p.currentToken}
 
-	if !p.expectPeek(TokenTypeLeftParenthesis) {
+	if err := p.expectPeek(TokenTypeLeftParenthesis); err != nil {
+		fmt.Println(err)
 		return nil // Expected '(' after 'if'
 	}
 
 	p.nextToken()
 	stmt.Condition = p.parseExpression(LOWEST)
 
-	if !p.expectPeek(TokenTypeRightParenthesis) {
-		return nil // Expected ')' after condition
+	if err := p.expectPeek(TokenTypeRightParenthesis); err != nil {
+		fmt.Println(err)
+		return nil // Expected '(' after 'if'
 	}
 
-	if !p.expectPeek(TokenTypeLeftBrace) {
+	if err := p.expectPeek(TokenTypeLeftBrace); err != nil {
+		fmt.Println(err)
 		return nil // Expected '{' after ')'
 	}
 
@@ -28,8 +32,9 @@ func (p *Parser) parseIfStatement() *ast.IfStatement {
 	if p.peekTokenIs(TokenTypeElse) {
 		p.nextToken()
 
-		if !p.expectPeek(TokenTypeLeftBrace) {
-			return nil // Expected '{' after 'else'
+		if err := p.expectPeek(TokenTypeLeftBrace); err != nil {
+			fmt.Println(err)
+			return nil // Expected '{' after ')'
 		}
 
 		stmt.Alternative = p.parseBlockStatement()
@@ -43,7 +48,8 @@ func (p *Parser) parseLambdaIfStatement() *ast.IfStatement {
 
 	stmt.Condition = p.parseLambdaExpression()
 
-	if !p.expectPeek(TokenTypeLeftBrace) {
+	if err := p.expectPeek(TokenTypeLeftBrace); err != nil {
+		fmt.Println(err)
 		return nil // Expected '{' after lambda expression
 	}
 

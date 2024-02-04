@@ -87,11 +87,11 @@ func (p *Parser) nextToken() {
 	p.currentToken = p.peekToken
 	var err error
 	p.peekToken, err = p.lexer.NextToken()
-	if p.peekToken.Type == TokenTypeEOF {
-		p.eof = true
-	} else if err != nil {
+	if err != nil {
 		p.eof = true
 		fmt.Println("Error reading next token:", err)
+	} else if p.peekToken.Type == TokenTypeEOF {
+		p.eof = true
 	} else {
 		p.eof = false
 	}
@@ -166,10 +166,10 @@ func (p *Parser) parseArrayLiteral() ast.ExpressionNode {
 	}
 
 	// Ensure we have a closing bracket
-	if !p.expectPeek(TokenTypeRightBracket) {
-		return nil // Error handling for missing closing bracket
+	if err := p.expectPeek(TokenTypeRightBracket); err != nil {
+		fmt.Println(err)
+		return nil
 	}
-
 	return arrayLit
 }
 
@@ -183,7 +183,6 @@ func (p *Parser) parseNumberLiteral() ast.ExpressionNode {
 	}
 
 	lit.Value = value
-	p.nextToken()
 	return lit
 }
 
@@ -191,7 +190,6 @@ func (p *Parser) parseStringLiteral() ast.ExpressionNode {
 	lit := &ast.StringLiteral{Token: p.currentToken}
 
 	lit.Value = p.currentToken.Literal
-	p.nextToken()
 	return lit
 }
 
@@ -206,20 +204,24 @@ func (p *Parser) parseParenthesisExpression() ast.ExpressionNode {
 	p.nextToken()
 	exp := p.parseExpression(LOWEST)
 
-	if !p.expectPeek(TokenTypeRightParenthesis) {
-		return nil // Error handling; expected a closing parenthesis
+	if err := p.expectPeek(TokenTypeRightParenthesis); err != nil {
+		fmt.Println(err)
+		return nil
 	}
 
 	return exp
 }
 
-func (p *Parser) expectPeek(t TokenType) bool {
+func (p *Parser) expectPeek(t TokenType) *ParserError {
 	if p.peekTokenIs(t) {
 		p.nextToken()
-		return true
+		return nil
 	} else {
-		// Add error handling here
-		return false
+		return &ParserError{
+			Message: fmt.Sprintf("Expected next token to be %s, got %s instead", t, p.peekToken.Type),
+			Line:    p.peekToken.Line,
+			Pos:     p.peekToken.Pos,
+		}
 	}
 }
 

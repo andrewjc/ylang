@@ -13,9 +13,12 @@ import (
 type Lexer struct {
 	reader     *bufio.Reader
 	position   int
+	line       int
+	linePos    int
 	ch         rune
 	peekBuffer []rune
 	eof        bool
+	peekToken  LangToken
 }
 
 func NewLexer(inputFile string) (*Lexer, error) {
@@ -53,6 +56,7 @@ func NewLexerFromString(input string) (*Lexer, error) {
 }
 
 func (l *Lexer) readChar() {
+	prevCh := l.ch
 	if len(l.peekBuffer) > 0 {
 		l.ch = l.peekBuffer[0]
 		l.peekBuffer = l.peekBuffer[1:]
@@ -65,6 +69,29 @@ func (l *Lexer) readChar() {
 		}
 	}
 	l.position++
+	if prevCh == '\n' {
+		l.line++
+		l.linePos = 0
+	} else {
+		l.linePos++
+	}
+	l.updatePeekTokenPosition()
+}
+
+func (l *Lexer) getCurrentLineNumber() int {
+	return l.line
+}
+
+func (l *Lexer) getCurrentLinePosition() int {
+	return l.linePos
+}
+
+func (l *Lexer) updatePeekTokenPosition() {
+	line := l.getCurrentLineNumber()
+	pos := l.getCurrentLinePosition()
+
+	l.peekToken.Line = line
+	l.peekToken.Pos = pos
 }
 
 func (l *Lexer) NextToken() (LangToken, error) {
@@ -193,6 +220,9 @@ func (l *Lexer) NextToken() (LangToken, error) {
 	}
 
 	l.readChar()
+
+	tok.Line = l.getCurrentLineNumber()
+	tok.Pos = l.getCurrentLinePosition()
 	return tok, nil
 }
 
@@ -212,6 +242,13 @@ func (l *Lexer) peekChar() rune {
 			return 0
 		}
 		l.peekBuffer = append(l.peekBuffer, ch)
+		if ch == '\n' {
+			l.line++
+			l.linePos = 0
+		} else {
+			l.linePos++
+		}
+		l.updatePeekTokenPosition()
 	}
 	return l.peekBuffer[0]
 }
@@ -223,6 +260,13 @@ func (l *Lexer) peekCharAtIndex(index int) rune {
 			return 0
 		}
 		l.peekBuffer = append(l.peekBuffer, ch)
+		if ch == '\n' {
+			l.line++
+			l.linePos = 0
+		} else {
+			l.linePos++
+		}
+		l.updatePeekTokenPosition()
 	}
 	return l.peekBuffer[index]
 }

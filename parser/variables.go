@@ -3,6 +3,7 @@ package parser
 import (
 	"compiler/ast"
 	. "compiler/lexer"
+	"fmt"
 )
 
 func (p *Parser) parseVariableDeclaration() *ast.VariableDeclaration {
@@ -17,8 +18,9 @@ func (p *Parser) parseVariableDeclaration() *ast.VariableDeclaration {
 	}
 
 	// Expect the next token to be an identifier (the variable name)
-	if !p.expectPeek(TokenTypeIdentifier) {
-		return nil
+	if err := p.expectPeek(TokenTypeIdentifier); err != nil {
+		fmt.Println(err)
+		return nil // expectedidentifier
 	}
 
 	varDecl.Name = &ast.Identifier{
@@ -30,8 +32,9 @@ func (p *Parser) parseVariableDeclaration() *ast.VariableDeclaration {
 	if p.peekTokenIs(TokenTypeLeftParenthesis) {
 		p.nextToken() // Consume '('
 
-		if !p.expectPeek(TokenTypeIdentifier) {
-			return nil // Expected a type name
+		if err := p.expectPeek(TokenTypeIdentifier); err != nil {
+			fmt.Println(err)
+			return nil // expectedidentifier
 		}
 
 		varDecl.Type = &ast.Identifier{
@@ -39,14 +42,16 @@ func (p *Parser) parseVariableDeclaration() *ast.VariableDeclaration {
 			Value: p.currentToken.Literal,
 		}
 
-		if !p.expectPeek(TokenTypeRightParenthesis) {
-			return nil // Expected ')'
+		if err := p.expectPeek(TokenTypeRightParenthesis); err != nil {
+			fmt.Println(err)
+			return nil // Expected ')' after type annotation
 		}
 	}
 
 	// Expect the next token to be '='
-	if !p.expectPeek(TokenTypeAssignment) {
-		return nil
+	if err := p.expectPeek(TokenTypeAssignment); err != nil {
+		fmt.Println(err)
+		return nil // Expected assignment operator
 	}
 
 	p.nextToken() // Consume '='
@@ -65,14 +70,16 @@ func (p *Parser) parseVariableDeclaration() *ast.VariableDeclaration {
 func (p *Parser) parseAssignmentStatement() ast.ExpressionNode {
 	stmt := &ast.AssignmentStatement{Token: p.currentToken}
 
-	if !p.expectPeek(TokenTypeIdentifier) {
-		return nil // Expected an identifier
+	if err := p.expectPeek(TokenTypeIdentifier); err != nil {
+		fmt.Println(err)
+		return nil // Expected identifier
 	}
 
 	stmt.Name = &ast.Identifier{Token: p.currentToken, Value: p.currentToken.Literal}
 
-	if !p.expectPeek(TokenTypeAssignment) {
-		return nil // Expected '='
+	if err := p.expectPeek(TokenTypeAssignment); err != nil {
+		fmt.Println(err)
+		return nil // Expected assignment operator
 	}
 
 	p.nextToken()
