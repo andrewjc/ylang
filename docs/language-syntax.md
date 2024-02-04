@@ -1,21 +1,26 @@
 # YLang Language Specification
 
 ## Introduction
-YLang merges static typing and object-oriented paradigms with features of functional programming. Its design aims for succinctness, expressiveness, and a developer-centric approach, drawing inspiration from various contemporary languages.
+
+YLang merges static typing and object-oriented paradigms with features of functional programming. Its design aims for
+succinctness, expressiveness, and a developer-centric approach, drawing inspiration from various contemporary languages.
 
 ## Syntax Guidelines
 
 ### Naming Rules
+
 - **Methods & Variables**: Adhere to camelCase.
 - **Classes & Namespaces**: Follow PascalCase.
 
 ### Data Types
+
 - **Static Typing**: Infer types statically, with optional explicit declarations.
 - **Primitive Types**: Includes `int`, `float`, `bool`, `string`, `char`.
 - **Collections**: Implements `List<T>`, `Set<T>`, `Map<K, V>`.
 - **Pointers**: Utilizes pointer syntax `Type*`.
 
 ### Defining Classes
+
 ```plaintext
 class ClassName {
     // Attributes and Methods
@@ -23,46 +28,57 @@ class ClassName {
 ```
 
 ### Methods
+
 - **Static Methods**: Defined as `static returnType methodName(params) -> body`.
 - **Instance Methods**: Follow `returnType methodName(params) -> body`.
 - **Lambdas**: Use `(params) -> expression` or extended block `(params) -> { body }`.
 
 ### Constructors
+
 - Constructors implicitly return the object instance.
 - Defined using `constructor(params) -> body`.
 
 ### Object Creation and Method Chaining
+
 - Objects are created via `let objectName(ClassName, params)`.
 - Enable method chaining with `->`.
 
 ### Control Flow Constructs
+
 - **Conditional**: Standard if-else constructs.
 - **Iteration**: Includes `for`, `while`, and collection-based `for item in collection`.
 - **Switch-Case**: Utilize pattern matching with `switch`.
 
 ### Exception Handling
+
 - Implements `try`, `catch`, `finally` for error management.
 
 ### Functional Features
+
 - Implements `map`, `filter`, `reduce` for collections.
 - Supports lambdas and higher-order functions.
 
 ### Lifecycle Hooks
+
 - **onConstruct**: Defined as `onConstruct(lambdaAction) -> { lambdaAction(this); return this; }`.
 - **onDestruct**: Specified with `onDestruct(lambdaAction) -> { /* Registration logic */ }`.
 
 ## Standard Library
+
 - Includes basic IO, networking, and file operations.
 - Provides standard data structures and algorithms.
 
 ## Language Integration
+
 - Offers interoperability mechanisms with languages like C, Java.
 
 ## Memory Management
+
 - Features automatic garbage collection.
 - Allows manual memory management for expert users.
 
 ## Example
+
 ```plaintext
 class Sample {
     let value;
