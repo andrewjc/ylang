@@ -12,23 +12,28 @@ func TestSimpleMain(t *testing.T) {
 	parser := NewParser(lexer)
 
 	program := parser.ParseProgram()
-	if len(program.Statements) != 1 {
+	if len(program.Statements) != 4 {
 		t.Fatalf("program has not enough statements. got=%d", len(program.Statements))
 	}
 
-	stmt, ok := program.Statements[0].(*ast.VariableDeclaration)
+	// the first statement should be a function definition (main)
+	var statement ast.Statement = program.Statements[0]
+	assertFunction(t, statement, "main")
+
+}
+
+func assertFunction(t *testing.T, statement ast.Statement, expectedName string) {
+	stmt, ok := statement.(*ast.ExpressionStatement)
 	if !ok {
-		t.Fatalf("program.Statements[0] is not ast.VariableDeclaration. got=%T", program.Statements[0])
+		t.Fatalf("stmt not *ast.ExpressionStatement. got=%T", statement)
 	}
 
-	literal, ok := stmt.Value.(*ast.NumberLiteral)
+	fnDef, ok := stmt.Expression.(ast.ExpressionNode)
 	if !ok {
-		t.Fatalf("exp not *ast.NumberLiteral. got=%T", stmt.Value)
+		t.Fatalf("stmt.Expression is not ast.FunctionDefinition. got=%T", stmt.Expression)
 	}
-	if literal.Value != 5 {
-		t.Errorf("literal.Value not %f. got=%f", 5.0, literal.Value)
-	}
-	if literal.TokenLiteral() != "5" {
-		t.Errorf("literal.TokenLiteral not %s. got=%s", "5", literal.TokenLiteral())
+
+	if fnDef.TokenLiteral() != expectedName {
+		t.Fatalf("function.Name.Value not '%s'. got=%s", expectedName, fnDef.TokenLiteral())
 	}
 }
