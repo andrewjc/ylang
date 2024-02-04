@@ -18,6 +18,9 @@ type Parser struct {
 	infixParseFns map[TokenType]infixParseFn
 }
 
+var DEFAULT_LOGGING_LEAD_LINES = 10
+var DEFAULT_LOGGING_FOLLOW_LINES = 10
+
 // infixParseFn defines the type for functions used for infix parsing.
 type infixParseFn func(ast.ExpressionNode) ast.ExpressionNode
 
@@ -87,7 +90,7 @@ func (p *Parser) nextToken() {
 	p.currentToken = p.peekToken
 	var err error
 	p.peekToken, err = p.lexer.NextToken()
-	if err != nil {
+	if err != nil && p.peekToken.Type != TokenTypeEOF {
 		p.eof = true
 		fmt.Println("Error reading next token:", err)
 	} else if p.peekToken.Type == TokenTypeEOF {
@@ -217,10 +220,13 @@ func (p *Parser) expectPeek(t TokenType) *ParserError {
 		p.nextToken()
 		return nil
 	} else {
+		line, pos := p.peekToken.Line, p.peekToken.Pos
+		snippet := p.lexer.GetCodeFragment(line, pos, DEFAULT_LOGGING_LEAD_LINES, DEFAULT_LOGGING_FOLLOW_LINES) // Get 10 characters around the error location
 		return &ParserError{
-			Message: fmt.Sprintf("Expected next token to be %s, got %s instead", t, p.peekToken.Type),
-			Line:    p.peekToken.Line,
-			Pos:     p.peekToken.Pos,
+			Line:         line,
+			Pos:          pos,
+			Message:      fmt.Sprintf("Expected token %s, got %s", t, p.peekToken.Type),
+			CodeFragment: snippet,
 		}
 	}
 }

@@ -11,15 +11,21 @@ import (
 )
 
 type Lexer struct {
-	reader     *bufio.Reader
-	position   int
-	line       int
-	linePos    int
-	ch         rune
-	peekBuffer []rune
-	eof        bool
-	peekToken  LangToken
+	reader      *bufio.Reader
+	position    int
+	line        int
+	linePos     int
+	ch          rune
+	peekBuffer  []rune
+	eof         bool
+	peekToken   LangToken
+	lines       []string
+	currentLine strings.Builder
+	start       int
+	end         int
 }
+
+const DEFAULT_ROLLING_BUFFER = 10
 
 func NewLexer(inputFile string) (*Lexer, error) {
 	file, err := os.Open(inputFile)
@@ -34,6 +40,7 @@ func NewLexer(inputFile string) (*Lexer, error) {
 		reader:   reader,
 		position: 0,
 		ch:       0,
+		lines:    make([]string, DEFAULT_ROLLING_BUFFER),
 	}
 
 	lexer.readChar()
@@ -48,6 +55,7 @@ func NewLexerFromString(input string) (*Lexer, error) {
 		reader:   reader,
 		position: 0,
 		ch:       0,
+		lines:    make([]string, DEFAULT_ROLLING_BUFFER),
 	}
 
 	lexer.readChar()
@@ -64,6 +72,10 @@ func (l *Lexer) readChar() {
 		ch, _, err := l.reader.ReadRune()
 		if err != nil {
 			l.ch = 0 // End of file or error
+			if prevCh != '\n' {
+				l.lines = append(l.lines, l.currentLine.String())
+				l.currentLine.Reset()
+			}
 		} else {
 			l.ch = ch
 		}
@@ -72,8 +84,11 @@ func (l *Lexer) readChar() {
 	if prevCh == '\n' {
 		l.line++
 		l.linePos = 0
+		l.lines = append(l.lines, l.currentLine.String())
+		l.currentLine.Reset()
 	} else {
 		l.linePos++
+		l.currentLine.WriteRune(l.ch)
 	}
 	l.updatePeekTokenPosition()
 }
@@ -299,4 +314,21 @@ func (l *Lexer) readAssembly() string {
 		l.readChar()
 	}
 	return asmBuilder.String()
+}
+
+func (l *Lexer) GetCodeFragment(line int, pos int, leadingLines int, followingLines int) string {
+	start := (l.end - leadingLines + DEFAULT_ROLLING_BUFFER) % DEFAULT_ROLLING_BUFFER
+	end := (l.end + followingLines) % DEFAULT_ROLLING_BUFFER
+
+	var lines []string
+	for i := start; i != end; i = (i + 1) % DEFAULT_ROLLING_BUFFER {
+		lines = append(lines, l.lines[i])
+	}
+
+	// If there's content in the currentLine buffer, append it to the lines array
+	if l.currentLine.Len() > 0 {
+		lines = append(lines, l.currentLine.String())
+	}
+
+	return strings.Join(lines, "\n")
 }

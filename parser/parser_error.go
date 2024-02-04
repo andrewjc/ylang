@@ -1,13 +1,18 @@
 package parser
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 type ParserError struct {
-	Message string
-	Line    int
-	Pos     int
+	Line         int
+	Pos          int
+	Message      string
+	CodeFragment string
 }
 
-func (pe *ParserError) Error() string {
-	return fmt.Sprintf("Parser error at line %d, position %d: %s", pe.Line, pe.Pos, pe.Message)
+func (e *ParserError) Error() string {
+	strippedCodeFragment := strings.TrimSpace(e.CodeFragment)
+	return fmt.Sprintf("Parse error at line %d, position %d: %s\n\t%s", e.Line, e.Pos, e.Message, strippedCodeFragment)
 }
