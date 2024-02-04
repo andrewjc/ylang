@@ -12,6 +12,7 @@ type Parser struct {
 	lexer        *Lexer    // The lexer from which tokens are read
 	currentToken LangToken // The current token being processed
 	peekToken    LangToken // The next token to be processed
+	eof          bool
 
 	// Map of infix parse functions, indexed by token type.
 	infixParseFns map[TokenType]infixParseFn
@@ -68,8 +69,9 @@ func NewParser(lexer *Lexer) *Parser {
 func (p *Parser) ParseProgram() *ast.Program {
 	program := &ast.Program{}
 	program.Statements = []ast.Statement{}
+	p.eof = false
 
-	for !p.currentTokenIs(TokenTypeEOF) {
+	for !p.eof {
 		stmt := p.parseStatement()
 		if stmt != nil {
 			program.Statements = append(program.Statements, stmt)
@@ -85,9 +87,13 @@ func (p *Parser) nextToken() {
 	p.currentToken = p.peekToken
 	var err error
 	p.peekToken, err = p.lexer.NextToken()
-	if p.peekToken.Type != TokenTypeEOF && err != nil {
-		// Error handling (could be logging or panic depending on your design)
+	if p.peekToken.Type == TokenTypeEOF {
+		p.eof = true
+	} else if err != nil {
+		p.eof = true
 		fmt.Println("Error reading next token:", err)
+	} else {
+		p.eof = false
 	}
 }
 
@@ -103,49 +109,6 @@ func (p *Parser) peekTokenIs(t TokenType) bool {
 
 func (p *Parser) currentTokenIs(t TokenType) bool {
 	return p.currentToken.Type == t
-}
-
-func (p *Parser) parseExpression(precedence int) ast.ExpressionNode {
-	// Initial expression parsing based on the current token
-	var leftExp ast.ExpressionNode
-
-	switch p.currentToken.Type {
-	case TokenTypeNumber:
-		leftExp = p.parseNumberLiteral()
-	case TokenTypeString:
-		leftExp = p.parseStringLiteral()
-	case TokenTypeIdentifier:
-		leftExp = p.parseIdentifier()
-	case TokenTypeLeftParenthesis:
-		leftExp = p.parseParenthesisExpression()
-	case TokenTypeLeftBracket:
-		leftExp = p.parseArrayLiteral()
-	case TokenTypeQuestionMark:
-		leftExp = p.parseTraditionalTernaryExpression(leftExp)
-	case TokenTypeLambdaArrow:
-		leftExp = p.parseLambdaStyleTernaryExpression(leftExp)
-	case TokenTypeIf:
-		leftExp = p.parseInlineIfElseTernaryExpression(leftExp)
-	case TokenTypeLet:
-		leftExp = p.parseVariableDeclaration()
-	case TokenTypeAssignment:
-		leftExp = p.parseAssignmentStatement()
-	case TokenTypeLeftBrace:
-		leftExp = p.parseBlockStatement()
-	}
-
-	for !p.peekTokenIs(TokenTypeSemicolon) && precedence < p.peekPrecedence() {
-		infix := p.infixParseFns[p.peekToken.Type]
-		if infix == nil {
-			return leftExp
-		}
-
-		p.nextToken()
-
-		leftExp = infix(leftExp)
-
-	}
-	return leftExp
 }
 
 func (p *Parser) parseStatement() ast.Statement {
@@ -292,4 +255,22 @@ func (p *Parser) currentPrecedence() int {
 		return p
 	}
 	return LOWEST
+}
+
+func (p *Parser) isFunctionDefinition() bool {
+	return p.peekTokenIs(TokenTypeLeftParenthesis)
+}
+
+func (p *Parser) isTernary() bool {
+	return p.peekTokenIs(TokenTypeQuestionMark)
+}
+
+func (p *Parser) parseTernaryExpression(exp ast.ExpressionNode) ast.ExpressionNode {
+	ternary := &ast.TraditionalTernaryExpression{
+		Token:     LangToken{},
+		Condition: nil,
+		TrueExpr:  nil,
+		FalseExpr: nil,
+	}
+	return ternary
 }
