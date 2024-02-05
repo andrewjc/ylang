@@ -219,6 +219,18 @@ func (l *Lexer) NextToken() (LangToken, error) {
 		// If not 'if' or 'in', treat it as an identifier
 		tokType, literal := l.readIdentifier()
 		return LangToken{Type: tokType, Literal: literal}, nil
+	case 'r':
+		// Check for the 'return' keyword
+		if l.peekChar() == 'e' && l.peekCharAtIndex(2) == 't' &&
+			l.peekCharAtIndex(3) == 'u' && l.peekCharAtIndex(4) == 'r' &&
+			l.peekCharAtIndex(5) == 'n' && !common.IsLetter(l.peekCharAtIndex(6)) {
+			tok.Literal = l.readReturn()
+			tok.Type = TokenTypeReturn
+			return tok, nil
+		}
+		// If not 'return', treat it as an identifier
+		tokType, literal := l.readIdentifier()
+		return LangToken{Type: tokType, Literal: literal}, nil
 	case '.':
 		tok = newToken(TokenTypeDot, l.ch)
 	default:
@@ -248,6 +260,15 @@ func (l *Lexer) readFunction() string {
 		l.readChar()
 	}
 	return funcBuilder.String()
+}
+
+func (l *Lexer) readReturn() string {
+	var returnBuilder strings.Builder
+	for !unicode.IsSpace(l.ch) && l.ch != 0 {
+		returnBuilder.WriteRune(l.ch)
+		l.readChar()
+	}
+	return returnBuilder.String()
 }
 
 func (l *Lexer) peekChar() rune {

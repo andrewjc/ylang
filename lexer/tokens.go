@@ -52,6 +52,7 @@ const (
 	TokenTypeAssembly         TokenType = "Assembly"
 	TokenTypeMain             TokenType = "Main"
 	TokenTypeComment          TokenType = "Comment"
+	TokenTypeReturn           TokenType = "Return"
 )
 
 const TokenTypeFunction TokenType = "Function"

@@ -4,6 +4,7 @@ import "compiler/lexer"
 
 type FunctionDefinition struct {
 	Token      lexer.LangToken // The first token of the expression
+	Name       *Identifier
 	Expression ExpressionNode
 	Parameters []string
 	Body       *BlockStatement

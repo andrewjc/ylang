@@ -3,6 +3,7 @@ package parser
 import (
 	"compiler/ast"
 	. "compiler/lexer"
+	"fmt"
 )
 
 func (p *Parser) parseExpression(precedence int) ast.ExpressionNode {
@@ -15,6 +16,11 @@ func (p *Parser) parseExpression(precedence int) ast.ExpressionNode {
 	case TokenTypeString:
 		leftExp = p.parseStringLiteral()
 	case TokenTypeIdentifier:
+		if p.peekTokenIs(TokenTypeLeftParenthesis) || p.peekTokenIs(TokenTypeLambdaArrow) {
+			leftExp = p.parseFunctionDefinition()
+		} else {
+			leftExp = p.parseIdentifier()
+		}
 		leftExp = p.parseIdentifier()
 	case TokenTypeLeftParenthesis:
 		leftExp = p.parseParenthesisExpression()
@@ -23,6 +29,8 @@ func (p *Parser) parseExpression(precedence int) ast.ExpressionNode {
 	case TokenTypeQuestionMark:
 		leftExp = p.parseTraditionalTernaryExpression(leftExp)
 	case TokenTypeLambdaArrow:
+		fmt.Print("Invoked lambda arrow branch but should not be invoked directly")
+
 		if p.isFunctionDefinition() {
 			leftExp = p.parseFunctionDefinition()
 		} else if p.isTernary() {
