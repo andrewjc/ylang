@@ -77,6 +77,7 @@ var Keywords = map[string]TokenType{
 	"default":  TokenTypeDefault,
 	"data":     TokenTypeData,
 	"type":     TokenTypeType,
+	"return":   TokenTypeReturn,
 	"asm":      TokenTypeAssembly,
 	// Add more keywords here
 }
