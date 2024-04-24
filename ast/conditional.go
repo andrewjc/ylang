@@ -6,8 +6,13 @@ import . "compiler/lexer"
 type IfStatement struct {
 	Token       LangToken // The 'if' token
 	Condition   ExpressionNode
-	Consequence *BlockStatement
-	Alternative *BlockStatement
+	Consequence ExpressionNode
+	Alternative ExpressionNode
+}
+
+func (is *IfStatement) expressionNode() {
+	//TODO implement me
+	panic("implement me")
 }
 
 func (is *IfStatement) statementNode()       {}

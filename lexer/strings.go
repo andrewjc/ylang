@@ -7,10 +7,10 @@ func (l *Lexer) readString() string {
 
 	openingQuoteStyle := l.ch
 
-	l.readChar() // Consume the opening double quote
+	l.ReadChar() // Consume the opening double quote
 	for l.ch != openingQuoteStyle && l.ch != 0 {
 		if l.ch == '\\' {
-			l.readChar() // Consume the backslash
+			l.ReadChar() // Consume the backslash
 			switch l.ch {
 			case 'n':
 				strBuilder.WriteRune('\n')
@@ -29,7 +29,7 @@ func (l *Lexer) readString() string {
 		} else {
 			strBuilder.WriteRune(l.ch)
 		}
-		l.readChar()
+		l.ReadChar()
 	}
 	if l.ch != openingQuoteStyle {
 		// TODO Handle the error - unclosed string literal
@@ -37,7 +37,7 @@ func (l *Lexer) readString() string {
 	}
 
 	// Consume the closing quote
-	l.readChar()
+	l.ReadChar()
 
 	return strBuilder.String()
 }

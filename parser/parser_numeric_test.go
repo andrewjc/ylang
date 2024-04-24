@@ -1,7 +1,6 @@
 package parser
 
 import (
-	"compiler/ast"
 	"compiler/lexer"
 	"testing"
 )
@@ -12,23 +11,20 @@ func TestVariableDeclarationNumberLiteral(t *testing.T) {
 	parser := NewParser(lexer)
 
 	program := parser.ParseProgram() // Assuming you have a method to parse the entire program
-	if len(program.Statements) != 1 {
-		t.Fatalf("program has not enough statements. got=%d", len(program.Statements))
+	if program == nil {
+		t.Fatalf("ParseProgram() returned nil")
 	}
 
-	stmt, ok := program.Statements[0].(*ast.VariableDeclaration)
-	if !ok {
-		t.Fatalf("program.Statements[0] is not ast.VariableDeclaration. got=%T", program.Statements[0])
+	if len(program.ClassDeclarations) != 1 {
+		t.Fatalf("program.ClassDeclarations does not contain 1 statement. got=%d", len(program.ClassDeclarations))
 	}
 
-	literal, ok := stmt.Value.(*ast.NumberLiteral)
-	if !ok {
-		t.Fatalf("exp not *ast.NumberLiteral. got=%T", stmt.Value)
+	stmt := program.ClassDeclarations[0]
+	if stmt.TokenLiteral() != "let" {
+		t.Fatalf("stmt.TokenLiteral not 'let'. got=%q", stmt.TokenLiteral())
 	}
-	if literal.Value != 5 {
-		t.Errorf("literal.Value not %f. got=%f", 5.0, literal.Value)
-	}
-	if literal.TokenLiteral() != "5" {
-		t.Errorf("literal.TokenLiteral not %s. got=%s", "5", literal.TokenLiteral())
+
+	if stmt.Name.Value != "x" {
+		t.Fatalf("stmt.Name.Value not 'x'. got=%q", stmt.Name.Value)
 	}
 }

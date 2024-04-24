@@ -6,73 +6,123 @@ import (
 	"fmt"
 )
 
-func (p *Parser) parseIfStatement() *ast.IfStatement {
-	stmt := &ast.IfStatement{Token: p.currentToken}
+func (p *Parser) parseIfStatement() ast.ExpressionNode {
+	ifStmt := &ast.IfStatement{Token: p.currentToken}
 
-	if err := p.expectPeek(TokenTypeLeftParenthesis); err != nil {
-		fmt.Println(err)
-		return nil // Expected '(' after 'if'
+	if !p.expectPeek(TokenTypeLeftParenthesis) {
+		fmt.Println("Expected left parenthesis")
+		return nil
 	}
 
 	p.nextToken()
-	stmt.Condition = p.parseExpression(LOWEST)
+	ifStmt.Condition = p.parseExpression(LOWEST)
 
-	if err := p.expectPeek(TokenTypeRightParenthesis); err != nil {
-		fmt.Println(err)
-		return nil // Expected '(' after 'if'
+	if !p.expectPeek(TokenTypeRightParenthesis) {
+		fmt.Println("Expected right parenthesis")
+		return nil
 	}
 
-	if err := p.expectPeek(TokenTypeLeftBrace); err != nil {
-		fmt.Println(err)
-		return nil // Expected '{' after ')'
+	if !p.expectPeek(TokenTypeLeftBrace) {
+		fmt.Println("Expected left brace")
+		return nil
 	}
 
-	stmt.Consequence = p.parseBlockStatement()
+	ifStmt.Consequence = p.parseBlockStatement()
 
 	if p.peekTokenIs(TokenTypeElse) {
 		p.nextToken()
 
-		if err := p.expectPeek(TokenTypeLeftBrace); err != nil {
-			fmt.Println(err)
-			return nil // Expected '{' after ')'
+		if p.peekTokenIs(TokenTypeIf) {
+			p.nextToken()
+			ifStmt.Alternative = p.parseIfStatement().(*ast.IfStatement)
+		} else if p.peekTokenIs(TokenTypeLeftBrace) {
+			p.nextToken()
+			ifStmt.Alternative = p.parseBlockStatement().(*ast.BlockStatement)
+		} else {
+			return nil
 		}
-
-		stmt.Alternative = p.parseBlockStatement()
 	}
 
-	return stmt
+	return ifStmt
 }
 
-func (p *Parser) parseLambdaIfStatement() *ast.IfStatement {
-	stmt := &ast.IfStatement{Token: p.currentToken}
-
-	stmt.Condition = p.parseLambdaExpression()
-
-	if err := p.expectPeek(TokenTypeLeftBrace); err != nil {
-		fmt.Println(err)
-		return nil // Expected '{' after lambda expression
+func (p *Parser) parseTraditionalTernaryExpression(condition ast.ExpressionNode) ast.ExpressionNode {
+	ternaryExp := &ast.TraditionalTernaryExpression{
+		Token:     p.currentToken,
+		Condition: condition,
 	}
 
-	stmt.Consequence = p.parseBlockStatement()
-
-	if p.peekTokenIs(TokenTypeElse) {
-		p.nextToken()
-
-		stmt.Alternative = p.parseLambdaElseBlock()
+	if !p.expectPeek(TokenTypeQuestionMark) {
+		return nil
 	}
 
-	return stmt
+	p.nextToken()
+	ternaryExp.TrueExpr = p.parseExpression(TERNARY)
+
+	if !p.expectPeek(TokenTypeSemicolon) {
+		return nil
+	}
+
+	p.nextToken()
+	ternaryExp.FalseExpr = p.parseExpression(TERNARY)
+
+	return ternaryExp
 }
-func (p *Parser) parseLambdaExpression() ast.ExpressionNode {
-	// Parse the lambda expression, which is an expression node
-	// This will include parsing the parameters and body of the lambda
 
-	return nil
+func (p *Parser) parseLambdaStyleTernaryExpression(condition ast.ExpressionNode) ast.ExpressionNode {
+	ternaryExp := &ast.LambdaStyleTernaryExpression{
+		Token:     p.currentToken,
+		Condition: condition,
+	}
+
+	if !p.expectPeek(TokenTypeLambdaArrow) {
+		fmt.Println("Expected lambda arrow")
+		return nil
+	}
+
+	p.nextToken()
+	ternaryExp.TrueExpr = p.parseExpression(TERNARY)
+
+	if !p.expectPeek(TokenTypeColon) {
+		fmt.Println("Expected colon")
+		return nil
+	}
+
+	p.nextToken()
+	ternaryExp.FalseExpr = p.parseExpression(TERNARY)
+
+	return ternaryExp
 }
 
-func (p *Parser) parseLambdaElseBlock() *ast.BlockStatement {
-	// Similar to parsing the main lambda block but for the 'else' part
+func (p *Parser) parseInlineIfElseTernaryExpression(condition ast.ExpressionNode) ast.ExpressionNode {
+	ternaryExp := &ast.InlineIfElseTernaryExpression{
+		Token:     p.currentToken,
+		Condition: condition,
+	}
 
-	return nil
+	if !p.expectPeek(TokenTypeIf) {
+		fmt.Println("Expected 'if'")
+		return nil
+	}
 
+	p.nextToken()
+	ternaryExp.Condition = p.parseExpression(LOWEST)
+
+	if !p.expectPeek(TokenTypeThen) {
+		fmt.Println("Expected 'then'")
+		return nil
+	}
+
+	p.nextToken()
+	ternaryExp.TrueExpr = p.parseExpression(TERNARY)
+
+	if !p.expectPeek(TokenTypeElse) {
+		fmt.Println("Expected 'else'")
+		return nil
+	}
+
+	p.nextToken()
+	ternaryExp.FalseExpr = p.parseExpression(TERNARY)
+
+	return ternaryExp
 }

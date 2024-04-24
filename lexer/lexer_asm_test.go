@@ -67,10 +67,10 @@ func TestLexer_readAssembly(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			l := &Lexer{
 				reader:   tt.fields.reader,
-				position: tt.fields.position,
+				Position: tt.fields.position,
 				ch:       tt.fields.ch,
 			}
-			l.readChar() // Initialize the lexer's ch field
+			l.ReadChar() // Initialize the lexer's ch field
 			if got := l.readAssembly(); got != tt.want {
 				t.Errorf("readAssembly() = %v, want %v", got, tt.want)
 			}

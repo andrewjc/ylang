@@ -6,173 +6,150 @@ import (
 	"fmt"
 )
 
-// Parser represents a parser with an associated lexer, current token and a peek token.
-type Parser struct {
-	lexer        *Lexer    // The lexer from which tokens are read
-	currentToken LangToken // The current token being processed
-	peekToken    LangToken // The next token to be processed
-	eof          bool
+const (
+	_ int = iota
+	LOWEST
+	EQUALS      // ==
+	LESSGREATER // > or <
+	SUM         // +
+	PRODUCT     // *
+	PREFIX      // -X or !X
+	CALL        // myFunction(X)
+	TERNARY     // condition ? trueExpression : falseExpression
 
-	// Map of infix parse functions, indexed by token type.
-	infixParseFns map[TokenType]infixParseFn
+)
+
+var precedences = map[TokenType]int{
+	TokenTypeEqual:           EQUALS,
+	TokenTypeLessThan:        LESSGREATER,
+	TokenTypeGreaterThan:     LESSGREATER,
+	TokenTypePlus:            SUM,
+	TokenTypeMinus:           SUM,
+	TokenTypeMultiply:        PRODUCT,
+	TokenTypeDivide:          PRODUCT,
+	TokenTypeLeftParenthesis: CALL,
+	TokenTypeLeftBracket:     LOWEST,
+	TokenTypeDot:             LOWEST,
+	TokenTypeQuestionMark:    LOWEST,
+	TokenTypeLambdaArrow:     LOWEST,
+	TokenTypeIf:              LOWEST,
 }
 
 var DEFAULT_LOGGING_LEAD_LINES = 10
 var DEFAULT_LOGGING_FOLLOW_LINES = 10
 
-// infixParseFn defines the type for functions used for infix parsing.
-type infixParseFn func(ast.ExpressionNode) ast.ExpressionNode
-
-const (
-	LOWEST  int = 1
-	SUM     int = 2 // +
-	PRODUCT int = 3 // *
-	TERNARY int = 4 // Ternary expressions
-	ARRAY   int = 5 // Array literals
-	DOT     int = 6 // Dot operator
-	// Define other precedence levels
+type (
+	prefixParseFn func() ast.ExpressionNode
+	infixParseFn  func(ast.ExpressionNode) ast.ExpressionNode
 )
 
-// precedences defines the order of operation for infix operators
-var precedences = map[TokenType]int{
-	TokenTypePlus:         SUM,
-	TokenTypeMinus:        SUM,
-	TokenTypeMultiply:     PRODUCT,
-	TokenTypeDivide:       PRODUCT,
-	TokenTypeQuestionMark: TERNARY,
-	TokenTypeLeftBracket:  ARRAY,
-	TokenTypeDot:          DOT,
-	// Add other operators and their precedences
+type Parser struct {
+	lexer  *Lexer
+	errors []string
+
+	currentToken LangToken
+	peekToken    LangToken
+	peekTokenErr error
+
+	prefixParseFns map[TokenType]prefixParseFn
+	infixParseFns  map[TokenType]infixParseFn
 }
 
-// NewParser creates and initializes a new Parser.
 func NewParser(lexer *Lexer) *Parser {
-	parser := &Parser{lexer: lexer}
-	// Initialize both currentToken and peekToken
-	parser.nextToken()
-	parser.nextToken()
+	p := &Parser{
+		lexer:  lexer,
+		errors: []string{},
+	}
 
-	// Register infix parse functions
-	parser.infixParseFns = make(map[TokenType]infixParseFn)
-	parser.registerInfix(TokenTypePlus, parser.parseInfixExpression)
-	parser.registerInfix(TokenTypeMinus, parser.parseInfixExpression)
-	parser.registerInfix(TokenTypeMultiply, parser.parseInfixExpression)
-	parser.registerInfix(TokenTypeDivide, parser.parseInfixExpression)
-	parser.registerInfix(TokenTypeQuestionMark, parser.parseTraditionalTernaryExpression)
-	parser.registerInfix(TokenTypeLambdaArrow, parser.parseLambdaStyleTernaryExpression)
-	parser.registerInfix(TokenTypeIf, parser.parseInlineIfElseTernaryExpression)
-	parser.registerInfix(TokenTypeDot, parser.parseDotOperator)
+	p.prefixParseFns = make(map[TokenType]prefixParseFn)
+	p.registerPrefix(TokenTypeIdentifier, p.parseIdentifier)
+	p.registerPrefix(TokenTypeNumber, p.parseNumberLiteral)
+	p.registerPrefix(TokenTypeString, p.parseStringLiteral)
+	p.registerPrefix(TokenTypeLeftParenthesis, p.parseParenthesisExpression)
+	p.registerPrefix(TokenTypeLeftBracket, p.parseArrayLiteral)
+	p.registerPrefix(TokenTypeLambdaArrow, p.parseLambdaExpression)
+	p.registerPrefix(TokenTypeIf, p.parseIfStatement)
+	p.registerPrefix(TokenTypeLet, p.parseVariableDeclaration)
+	p.registerPrefix(TokenTypeLeftBrace, p.parseBlockStatement)
 
-	// Add other infix operators here
+	p.infixParseFns = make(map[TokenType]infixParseFn)
+	p.registerInfix(TokenTypePlus, p.parseInfixExpression)
+	p.registerInfix(TokenTypeMinus, p.parseInfixExpression)
+	p.registerInfix(TokenTypeMultiply, p.parseInfixExpression)
+	p.registerInfix(TokenTypeDivide, p.parseInfixExpression)
+	p.registerInfix(TokenTypeEqual, p.parseInfixExpression)
+	p.registerInfix(TokenTypeLessThan, p.parseInfixExpression)
+	p.registerInfix(TokenTypeGreaterThan, p.parseInfixExpression)
+	p.registerInfix(TokenTypeLeftParenthesis, p.parseCallExpression)
+	p.registerInfix(TokenTypeLeftBracket, p.parseIndexExpression)
+	p.registerInfix(TokenTypeDot, p.parseDotOperator)
+	p.registerInfix(TokenTypeQuestionMark, p.parseTraditionalTernaryExpression)
+	p.registerInfix(TokenTypeLambdaArrow, p.parseLambdaStyleTernaryExpression)
+	p.registerInfix(TokenTypeIf, p.parseInlineIfElseTernaryExpression)
 
-	return parser
+	// Read two tokens, so currentToken and peekToken are both set
+	p.nextToken()
+	p.nextToken()
+
+	return p
 }
 
 func (p *Parser) ParseProgram() *ast.Program {
 	program := &ast.Program{}
-	program.Statements = []ast.Statement{}
-	p.eof = false
 
-	for !p.eof {
-		stmt := p.parseStatement()
-		if stmt != nil {
-			program.Statements = append(program.Statements, stmt)
+	// Parse class declarations, functions, and data structures
+	for !p.currentTokenIs(TokenTypeEOF) {
+		switch p.currentToken.Type {
+		case TokenTypeIdentifier, TokenTypeType:
+			if p.peekTokenIs(TokenTypeArrow) {
+				classDecl := p.parseClassDeclaration()
+				if classDecl != nil {
+					program.ClassDeclarations = append(program.ClassDeclarations, classDecl)
+				}
+			} else if p.peekTokenIs(TokenTypeLeftParenthesis) {
+				function := p.parseFunctionDefinition()
+				if function != nil {
+					program.Functions = append(program.Functions, function)
+				}
+			} else {
+				dataStruct := p.parseDataStructure()
+				if dataStruct != nil {
+					program.DataStructures = append(program.DataStructures, dataStruct)
+				}
+			}
+		default:
+			p.nextToken()
 		}
-		p.nextToken()
 	}
 
+	// find main function
+	for _, fn := range program.Functions {
+		if fn.Name.Value == "main" {
+			program.MainFunction = fn
+			break
+		}
+	}
 	return program
 }
 
-// nextToken advances both the currentToken and the peekToken.
-func (p *Parser) nextToken() {
-	p.currentToken = p.peekToken
-	var err error
-	p.peekToken, err = p.lexer.NextToken()
-	if err != nil && p.peekToken.Type != TokenTypeEOF {
-		p.eof = true
-		fmt.Println("Error reading next token:", err)
-	} else if p.peekToken.Type == TokenTypeEOF {
-		p.eof = true
-	} else {
-		p.eof = false
-	}
+func (p *Parser) Errors() []string {
+	return p.errors
 }
 
-// peekTokenType returns the type of the peek token.
-func (p *Parser) peekTokenType() TokenType {
-	return p.peekToken.Type
+func (p *Parser) peekError(t TokenType) {
+	msg := fmt.Sprintf("expected next token to be %s, got %s instead",
+		t, p.peekToken.Type)
+	p.errors = append(p.errors, msg)
 }
 
-// peekTokenIs checks if the peek token is of a certain type.
-func (p *Parser) peekTokenIs(t TokenType) bool {
-	return p.peekTokenType() == t
-}
-
-func (p *Parser) currentTokenIs(t TokenType) bool {
-	return p.currentToken.Type == t
-}
-
-func (p *Parser) parseDotOperator(left ast.ExpressionNode) ast.ExpressionNode {
-	exp := &ast.MemberAccessExpression{
-		Token: p.currentToken,
-		Left:  left,
-	}
-
-	p.nextToken()
-	if !p.currentTokenIs(TokenTypeIdentifier) {
-		// Error handling: Expecting an identifier after '.'
-		return nil
-	}
-
-	exp.Member = p.currentToken.Literal
-	p.nextToken()
-	return exp
-}
-
-func (p *Parser) parseIdentifier() ast.ExpressionNode {
-	return &ast.Identifier{
-		Token: p.currentToken,
-		Value: p.currentToken.Literal,
-	}
-}
-
-func (p *Parser) expectPeek(t TokenType) *ParserError {
-	if p.peekTokenIs(t) {
-		p.nextToken()
-		return nil
-	} else {
-		line, pos := p.peekToken.Line, p.peekToken.Pos
-		snippet := p.lexer.GetCodeFragment(line, pos, DEFAULT_LOGGING_LEAD_LINES, DEFAULT_LOGGING_FOLLOW_LINES) // Get 10 characters around the error location
-		return &ParserError{
-			Line:         line,
-			Pos:          pos,
-			Message:      fmt.Sprintf("Expected token %s, got %s", t, p.peekToken.Type),
-			CodeFragment: snippet,
-		}
-	}
+func (p *Parser) registerPrefix(tokenType TokenType, fn prefixParseFn) {
+	p.prefixParseFns[tokenType] = fn
 }
 
 func (p *Parser) registerInfix(tokenType TokenType, fn infixParseFn) {
-
 	p.infixParseFns[tokenType] = fn
 }
 
-func (p *Parser) parseInfixExpression(left ast.ExpressionNode) ast.ExpressionNode {
-	expression := &ast.InfixExpression{
-		Token:    p.currentToken,
-		Operator: p.currentToken.Literal,
-		Left:     left,
-	}
-
-	precedence := p.currentPrecedence()
-	p.nextToken()
-	expression.Right = p.parseExpression(precedence)
-
-	return expression
-}
-
-// Utility functions to determine the precedence of tokens
 func (p *Parser) peekPrecedence() int {
 	if p, ok := precedences[p.peekToken.Type]; ok {
 		return p
@@ -185,4 +162,38 @@ func (p *Parser) currentPrecedence() int {
 		return p
 	}
 	return LOWEST
+}
+
+func (p *Parser) parseIdentifier() ast.ExpressionNode {
+	return &ast.Identifier{Token: p.currentToken, Value: p.currentToken.Literal}
+}
+
+func (p *Parser) parseCallExpression(function ast.ExpressionNode) ast.ExpressionNode {
+	exp := &ast.CallExpression{Token: p.currentToken, Function: function}
+	exp.Arguments = p.parseExpressionList(TokenTypeRightParenthesis)
+	return exp
+}
+
+func (p *Parser) parseExpressionList(end TokenType) []ast.ExpressionNode {
+	var list []ast.ExpressionNode
+
+	if p.peekTokenIs(end) {
+		p.nextToken()
+		return list
+	}
+
+	p.nextToken()
+	list = append(list, p.parseExpression(LOWEST))
+
+	for p.peekTokenIs(TokenTypeComma) {
+		p.nextToken()
+		p.nextToken()
+		list = append(list, p.parseExpression(LOWEST))
+	}
+
+	if !p.expectPeek(end) {
+		return nil
+	}
+
+	return list
 }

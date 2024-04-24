@@ -12,7 +12,7 @@ import (
 
 type Lexer struct {
 	reader      *bufio.Reader
-	position    int
+	Position    int
 	line        int
 	linePos     int
 	ch          rune
@@ -38,12 +38,12 @@ func NewLexer(inputFile string) (*Lexer, error) {
 
 	lexer := &Lexer{
 		reader:   reader,
-		position: 0,
+		Position: 0,
 		ch:       0,
 		lines:    make([]string, DEFAULT_ROLLING_BUFFER),
 	}
 
-	lexer.readChar()
+	lexer.ReadChar()
 
 	return lexer, nil
 }
@@ -53,17 +53,17 @@ func NewLexerFromString(input string) (*Lexer, error) {
 
 	lexer := &Lexer{
 		reader:   reader,
-		position: 0,
+		Position: 0,
 		ch:       0,
 		lines:    make([]string, DEFAULT_ROLLING_BUFFER),
 	}
 
-	lexer.readChar()
+	lexer.ReadChar()
 
 	return lexer, nil
 }
 
-func (l *Lexer) readChar() {
+func (l *Lexer) ReadChar() {
 	prevCh := l.ch
 	if len(l.peekBuffer) > 0 {
 		l.ch = l.peekBuffer[0]
@@ -80,7 +80,7 @@ func (l *Lexer) readChar() {
 			l.ch = ch
 		}
 	}
-	l.position++
+	l.Position++
 	if prevCh == '\n' {
 		l.line++
 		l.linePos = 0
@@ -127,14 +127,14 @@ func (l *Lexer) NextToken() (LangToken, error) {
 	case '=':
 		if l.peekChar() == '>' {
 			tok = newToken(TokenTypeArrow, l.ch)
-			l.readChar() // Consume '>'
+			l.ReadChar() // Consume '>'
 		} else {
 			tok = newToken(TokenTypeAssignment, l.ch)
 		}
 	case '?':
 		if l.peekChar() == ':' {
 			tok = newToken(TokenTypeColon, l.ch)
-			l.readChar() // Consume ':'
+			l.ReadChar() // Consume ':'
 		} else {
 			tok = newToken(TokenTypeQuestionMark, l.ch)
 		}
@@ -143,7 +143,7 @@ func (l *Lexer) NextToken() (LangToken, error) {
 	case '-':
 		if l.peekChar() == '>' {
 			tok = LangToken{Type: TokenTypeLambdaArrow, Literal: "->"}
-			l.readChar() // Consume '>'
+			l.ReadChar() // Consume '>'
 		} else {
 			tok = newToken(TokenTypeMinus, l.ch)
 		}
@@ -170,7 +170,7 @@ func (l *Lexer) NextToken() (LangToken, error) {
 	case '<':
 		if l.peekChar() == '=' {
 			tok = newToken(TokenTypeLessThanEqual, l.ch)
-			l.readChar() // Consume '='
+			l.ReadChar() // Consume '='
 		} else {
 			tok = newToken(TokenTypeLessThan, l.ch)
 		}
@@ -246,7 +246,7 @@ func (l *Lexer) NextToken() (LangToken, error) {
 		}
 	}
 
-	l.readChar()
+	l.ReadChar()
 
 	tok.Line = l.getCurrentLineNumber()
 	tok.Pos = l.getCurrentLinePosition()
@@ -257,7 +257,7 @@ func (l *Lexer) readFunction() string {
 	var funcBuilder strings.Builder
 	for !unicode.IsSpace(l.ch) && l.ch != 0 {
 		funcBuilder.WriteRune(l.ch)
-		l.readChar()
+		l.ReadChar()
 	}
 	return funcBuilder.String()
 }
@@ -266,7 +266,7 @@ func (l *Lexer) readReturn() string {
 	var returnBuilder strings.Builder
 	for !unicode.IsSpace(l.ch) && l.ch != 0 {
 		returnBuilder.WriteRune(l.ch)
-		l.readChar()
+		l.ReadChar()
 	}
 	return returnBuilder.String()
 }
@@ -309,7 +309,7 @@ func (l *Lexer) peekCharAtIndex(index int) rune {
 
 func (l *Lexer) skipWhitespace() {
 	for unicode.IsSpace(l.ch) {
-		l.readChar()
+		l.ReadChar()
 	}
 }
 
@@ -317,7 +317,7 @@ func (l *Lexer) readIdentifier() (TokenType, string) {
 	var identBuilder strings.Builder
 	for common.IsLetter(l.ch) || common.IsDigit(l.ch) {
 		identBuilder.WriteRune(l.ch)
-		l.readChar()
+		l.ReadChar()
 	}
 	ident := identBuilder.String()
 	if tokType, isKeyword := Keywords[ident]; isKeyword {
@@ -332,7 +332,7 @@ func (l *Lexer) readAssembly() string {
 	var asmBuilder strings.Builder
 	for !unicode.IsSpace(l.ch) && l.ch != 0 {
 		asmBuilder.WriteRune(l.ch)
-		l.readChar()
+		l.ReadChar()
 	}
 	return asmBuilder.String()
 }

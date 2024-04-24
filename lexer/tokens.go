@@ -21,6 +21,7 @@ const (
 	TokenTypeMultiply         TokenType = "Multiply"
 	TokenTypeDot              TokenType = "Dot"
 	TokenTypeDivide           TokenType = "Divide"
+	TokenTypeEqual            TokenType = "Equal"
 	TokenTypeLessThan         TokenType = "LessThan"
 	TokenTypeLessThanEqual    TokenType = "LessThanEqual"
 	TokenTypeGreaterThan      TokenType = "GreaterThan"
@@ -52,6 +53,7 @@ const (
 	TokenTypeAssembly         TokenType = "Assembly"
 	TokenTypeMain             TokenType = "Main"
 	TokenTypeComment          TokenType = "Comment"
+	TokenTypeMultiLineComment TokenType = "MultiLineComment"
 	TokenTypeReturn           TokenType = "Return"
 )
 

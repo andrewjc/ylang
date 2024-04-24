@@ -7,84 +7,80 @@ import (
 )
 
 func (p *Parser) parseExpression(precedence int) ast.ExpressionNode {
-	// Initial expression parsing based on the current token
-	var leftExp ast.ExpressionNode
-
-	switch p.currentToken.Type {
-	case TokenTypeNumber:
-		leftExp = p.parseNumberLiteral()
-	case TokenTypeString:
-		leftExp = p.parseStringLiteral()
-	case TokenTypeIdentifier:
-		if p.peekTokenIs(TokenTypeLeftParenthesis) || p.peekTokenIs(TokenTypeLambdaArrow) {
-			leftExp = p.parseFunctionDefinition()
-		} else {
-			leftExp = p.parseIdentifier()
-		}
-		leftExp = p.parseIdentifier()
-	case TokenTypeLeftParenthesis:
-		leftExp = p.parseParenthesisExpression()
-	case TokenTypeLeftBracket:
-		leftExp = p.parseArrayLiteral()
-	case TokenTypeQuestionMark:
-		leftExp = p.parseTraditionalTernaryExpression(leftExp)
-	case TokenTypeLambdaArrow:
-		fmt.Print("Invoked lambda arrow branch but should not be invoked directly")
-
-		if p.isFunctionDefinition() {
-			leftExp = p.parseFunctionDefinition()
-		} else if p.isTernary() {
-			leftExp = p.parseTernaryExpression(leftExp)
-		} else {
-			leftExp = p.parseLambdaExpression()
-		}
-	case TokenTypeIf:
-		leftExp = p.parseInlineIfElseTernaryExpression(leftExp)
-	case TokenTypeLet:
-		leftExp = p.parseVariableDeclaration()
-	case TokenTypeAssignment:
-		leftExp = p.parseAssignmentStatement()
-	case TokenTypeLeftBrace:
-		leftExp = p.parseBlockStatement()
+	prefix := p.prefixParseFns[p.currentToken.Type]
+	if prefix == nil {
+		p.noPrefixParseFnError(p.currentToken.Type)
+		return nil
 	}
+	leftExp := prefix()
 
 	for !p.peekTokenIs(TokenTypeSemicolon) && precedence < p.peekPrecedence() {
 		infix := p.infixParseFns[p.peekToken.Type]
 		if infix == nil {
 			return leftExp
 		}
-
 		p.nextToken()
-
 		leftExp = infix(leftExp)
-
 	}
+
 	return leftExp
 }
 
-func (p *Parser) parseStatement() ast.Statement {
-	switch p.currentToken.Type {
-	case TokenTypeLet:
-		return p.parseVariableDeclaration()
-	case TokenTypeIf:
-		if p.peekTokenIs(TokenTypeLeftParenthesis) {
-			return p.parseIfStatement()
-		} else {
-			return p.parseLambdaIfStatement()
-		}
-	// Include other cases for different statement types
-	default:
-		return p.parseExpressionStatement() // Default to expression statement
+func (p *Parser) parseInfixExpression(left ast.ExpressionNode) ast.ExpressionNode {
+	expression := &ast.InfixExpression{
+		Token:    p.currentToken,
+		Operator: p.currentToken.Literal,
+		Left:     left,
 	}
+
+	precedence := p.currentPrecedence()
+	p.nextToken()
+	expression.Right = p.parseExpression(precedence)
+
+	return expression
 }
 
-func (p *Parser) parseExpressionStatement() *ast.ExpressionStatement {
-	stmt := &ast.ExpressionStatement{Token: p.currentToken}
-	stmt.Expression = p.parseExpression(LOWEST)
+func (p *Parser) parseParenthesisExpression() ast.ExpressionNode {
+	/*
+		Handle special case where a lambda expression is provided as the object being assigned to a variable
+	*/
 
-	if p.peekTokenIs(TokenTypeSemicolon) {
-		p.nextToken()
+	if p.isFunctionDefinition() {
+		return p.parseFunctionDefinition()
 	}
 
-	return stmt
+	p.nextToken()
+	exp := p.parseExpression(LOWEST)
+
+	if !p.expectPeek(TokenTypeRightParenthesis) {
+		fmt.Println("Expected ')' after expression")
+		return nil
+	}
+
+	return exp
+}
+
+func (p *Parser) parseDotOperator(left ast.ExpressionNode) ast.ExpressionNode {
+	dotOperator := &ast.DotOperator{
+		Token: p.currentToken,
+		Left:  left,
+	}
+
+	p.nextToken()
+
+	if !p.currentTokenIs(TokenTypeIdentifier) {
+		return nil
+	}
+
+	dotOperator.Right = &ast.Identifier{
+		Token: p.currentToken,
+		Value: p.currentToken.Literal,
+	}
+
+	return dotOperator
+}
+
+func (p *Parser) noPrefixParseFnError(t TokenType) {
+	msg := fmt.Sprintf("no prefix parse function for %s found", t)
+	p.errors = append(p.errors, msg)
 }

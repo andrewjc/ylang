@@ -28,9 +28,22 @@ func (p *Parser) parseArrayLiteral() ast.ExpressionNode {
 	}
 
 	// Ensure we have a closing bracket
-	if err := p.expectPeek(TokenTypeRightBracket); err != nil {
-		fmt.Println(err)
+	if !p.expectPeek(TokenTypeRightBracket) {
+		fmt.Println("Expected closing bracket")
 		return nil
 	}
 	return arrayLit
+}
+
+func (p *Parser) parseIndexExpression(left ast.ExpressionNode) ast.ExpressionNode {
+	exp := &ast.IndexExpression{Token: p.currentToken, Left: left}
+
+	p.nextToken()
+	exp.Index = p.parseExpression(LOWEST)
+
+	if !p.expectPeek(TokenTypeRightBracket) {
+		return nil
+	}
+
+	return exp
 }

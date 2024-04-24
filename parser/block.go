@@ -3,16 +3,18 @@ package parser
 import (
 	"compiler/ast"
 	. "compiler/lexer"
-	"fmt"
 )
 
-func (p *Parser) parseBlockStatement() *ast.BlockStatement {
+func (p *Parser) parseBlockStatement() ast.ExpressionNode {
+	if p.peekTokenIs(TokenTypeLeftBrace) {
+		p.nextToken()
+		p.nextToken()
+	}
+
 	block := &ast.BlockStatement{Token: p.currentToken}
 	block.Statements = []ast.Statement{}
 
-	if p.currentTokenIs(TokenTypeLeftBrace) {
-		p.nextToken()
-	}
+	p.nextToken()
 
 	for !p.currentTokenIs(TokenTypeRightBrace) && !p.currentTokenIs(TokenTypeEOF) {
 		stmt := p.parseStatement()
@@ -23,24 +25,4 @@ func (p *Parser) parseBlockStatement() *ast.BlockStatement {
 	}
 
 	return block
-}
-
-func (p *Parser) parseParenthesisExpression() ast.ExpressionNode {
-	/*
-		Handle special case where a lambda expression is provided as the object being assigned to a variable
-	*/
-
-	if p.isFunctionDefinition() {
-		return p.parseFunctionDefinition()
-	}
-
-	p.nextToken()
-	exp := p.parseExpression(LOWEST)
-
-	if err := p.expectPeek(TokenTypeRightParenthesis); err != nil {
-		fmt.Println(err)
-		return nil
-	}
-
-	return exp
 }

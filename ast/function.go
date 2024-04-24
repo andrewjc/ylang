@@ -6,8 +6,8 @@ type FunctionDefinition struct {
 	Token      lexer.LangToken // The first token of the expression
 	Name       *Identifier
 	Expression ExpressionNode
-	Parameters []string
-	Body       *BlockStatement
+	Parameters []*Identifier
+	Body       ExpressionNode
 }
 
 func (es *FunctionDefinition) expressionNode() {

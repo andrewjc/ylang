@@ -31,22 +31,7 @@ func (p *Parser) isFunctionDefinition() bool {
 	return false
 }
 
-func (p *Parser) parseFunctionDefinition() ast.ExpressionNode {
-	/*
-			Handle parsing of function definitions
-			- Function definition can be a traditional function definition or a lambda-style function definition
-			- Traditional function definition: function name(parameters) { body }
-			- Lambda-style function definition: (parameters) -> { body }
-			- Parameters are a list of identifiers separated by commas
-			- Body is a block statement
-		    Examples:
-			- func add(a, b) { return a + b; }
-			- (a, b) -> { return a + b; }
-			- (a, b) -> printf("a: %d, b: %d", a, b);
-		    - main() -> { printf("Hello, World!"); }
-			- main(argv, argc) -> { printf("Hello, World!"); }
-
-	*/
+func (p *Parser) parseFunctionDefinition() *ast.FunctionDefinition {
 	fn := &ast.FunctionDefinition{Token: p.currentToken}
 
 	if !p.isFunctionDefinition() {
@@ -62,62 +47,51 @@ func (p *Parser) parseFunctionDefinition() ast.ExpressionNode {
 		return nil
 	}
 
-	if p.currentTokenIs(TokenTypeIdentifier) {
-		fn.Name = &ast.Identifier{Token: p.currentToken, Value: p.currentToken.Literal}
-		p.nextToken() // Skip the left parenthesis
-	}
+	fn.Name = &ast.Identifier{Token: p.currentToken, Value: p.currentToken.Literal}
 
-	if p.currentTokenIs(TokenTypeLeftParenthesis) {
-		fn.Parameters = p.parseFunctionParameters()
-		p.nextToken() // skip the right parenthesis
-	}
-
-	if !p.peekTokenIs(TokenTypeLambdaArrow) && !p.peekTokenIs(TokenTypeLeftBrace) {
-		line, pos := p.peekToken.Line, p.peekToken.Pos
-		snippet := p.lexer.GetCodeFragment(line, pos, DEFAULT_LOGGING_LEAD_LINES, DEFAULT_LOGGING_FOLLOW_LINES)
-		parseError := &ParserError{
-			Line:         line,
-			Pos:          pos,
-			Message:      fmt.Sprintf("Syntax error: Expected '->' or '{', got %s", p.peekToken.Type),
-			CodeFragment: snippet,
-		}
-		fmt.Println(parseError)
+	if !p.expectPeek(TokenTypeLeftParenthesis) {
 		return nil
 	}
 
-	if p.currentTokenIs(TokenTypeLambdaArrow) {
-		p.nextToken() // Skip the lambda arrow
-	}
+	fn.Parameters = p.parseFunctionParameters()
 
-	if !p.currentTokenIs(TokenTypeLeftBrace) {
-		line, pos := p.peekToken.Line, p.peekToken.Pos
-		snippet := p.lexer.GetCodeFragment(line, pos, DEFAULT_LOGGING_LEAD_LINES, DEFAULT_LOGGING_FOLLOW_LINES)
-		parseError := &ParserError{
-			Line:         line,
-			Pos:          pos,
-			Message:      fmt.Sprintf("Syntax error: Expected '{', got %s", p.peekToken.Type),
-			CodeFragment: snippet,
+	if p.peekTokenIs(TokenTypeLambdaArrow) {
+		p.nextToken()
+	} else {
+		if !p.expectPeek(TokenTypeLeftBrace) {
+			return nil
 		}
-		fmt.Println(parseError)
-		return nil
 	}
 
-	fn.Body = p.parseBlockStatement()
+	fnBody := p.parseBlockStatement()
+	fn.Body = fnBody
 
 	return fn
 }
 
-func (p *Parser) parseFunctionParameters() []string {
-	var parameters []string
-	for !p.currentTokenIs(TokenTypeRightParenthesis) {
-		if p.currentTokenIs(TokenTypeIdentifier) {
-			parameters = append(parameters, p.currentToken.Literal)
-		}
+func (p *Parser) parseFunctionParameters() []*ast.Identifier {
+	identifiers := []*ast.Identifier{}
+
+	if p.peekTokenIs(TokenTypeRightParenthesis) {
 		p.nextToken()
-		if p.currentTokenIs(TokenTypeComma) {
-			p.nextToken()
-		}
+		return identifiers
 	}
 
-	return parameters
+	p.nextToken()
+
+	ident := &ast.Identifier{Token: p.currentToken, Value: p.currentToken.Literal}
+	identifiers = append(identifiers, ident)
+
+	for p.peekTokenIs(TokenTypeComma) {
+		p.nextToken()
+		p.nextToken()
+		ident := &ast.Identifier{Token: p.currentToken, Value: p.currentToken.Literal}
+		identifiers = append(identifiers, ident)
+	}
+
+	if !p.expectPeek(TokenTypeRightParenthesis) {
+		return nil
+	}
+
+	return identifiers
 }

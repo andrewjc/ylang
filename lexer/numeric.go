@@ -14,7 +14,7 @@ func (l *Lexer) readNumber() string {
 			hasDecimal = true
 		}
 		numBuilder.WriteRune(l.ch)
-		l.readChar()
+		l.ReadChar()
 	}
 
 	if hasDecimal && numBuilder.Len() == 1 { // Handle single '.' as an error or different token

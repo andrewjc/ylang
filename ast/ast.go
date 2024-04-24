@@ -18,10 +18,6 @@ type ExpressionNode interface {
 	expressionNode()
 }
 
-type Program struct {
-	Statements []Statement
-}
-
 type Statement interface {
 	Node
 	statementNode()

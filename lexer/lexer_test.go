@@ -59,11 +59,11 @@ func TestLexer_peekChar(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			l := &Lexer{
 				reader:   tt.fields.reader,
-				position: tt.fields.position,
+				Position: tt.fields.position,
 				ch:       tt.fields.ch,
 			}
 			// Initialize lexer's ch field by reading the first character
-			l.readChar()
+			l.ReadChar()
 			if got := l.peekChar(); got != tt.want {
 				t.Errorf("peekChar() = %v, want %v", got, tt.want)
 			}
@@ -141,7 +141,7 @@ func TestLexer_peekCharAtIndex(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			l := &Lexer{
 				reader:   tt.fields.reader,
-				position: tt.fields.position,
+				Position: tt.fields.position,
 				ch:       tt.fields.ch,
 			}
 			if got := l.peekCharAtIndex(tt.args.index); got != tt.want {
@@ -167,10 +167,10 @@ func TestLexer_readChar(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			l := &Lexer{
 				reader:   tt.fields.reader,
-				position: tt.fields.position,
+				Position: tt.fields.position,
 				ch:       tt.fields.ch,
 			}
-			l.readChar()
+			l.ReadChar()
 		})
 	}
 }
@@ -192,7 +192,7 @@ func TestLexer_readIdentifier(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			l := &Lexer{
 				reader:   tt.fields.reader,
-				position: tt.fields.position,
+				Position: tt.fields.position,
 				ch:       tt.fields.ch,
 			}
 			if got, _ := l.readIdentifier(); got != tt.want {
@@ -219,7 +219,7 @@ func TestLexer_readNumber(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			l := &Lexer{
 				reader:   tt.fields.reader,
-				position: tt.fields.position,
+				Position: tt.fields.position,
 				ch:       tt.fields.ch,
 			}
 			if got := l.readNumber(); got != tt.want {
@@ -246,7 +246,7 @@ func TestLexer_readString(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			l := &Lexer{
 				reader:   tt.fields.reader,
-				position: tt.fields.position,
+				Position: tt.fields.position,
 				ch:       tt.fields.ch,
 			}
 			if got := l.readString(); got != tt.want {
@@ -272,7 +272,7 @@ func TestLexer_skipWhitespace(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			l := &Lexer{
 				reader:   tt.fields.reader,
-				position: tt.fields.position,
+				Position: tt.fields.position,
 				ch:       tt.fields.ch,
 			}
 			l.skipWhitespace()
