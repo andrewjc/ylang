@@ -1,6 +1,9 @@
 package ast
 
-import . "compiler/lexer"
+import (
+	. "compiler/lexer"
+	"strings"
+)
 
 // IfStatement represents an 'if' control flow statement.
 type IfStatement struct {
@@ -17,3 +20,18 @@ func (is *IfStatement) expressionNode() {
 
 func (is *IfStatement) statementNode()       {}
 func (is *IfStatement) TokenLiteral() string { return is.Token.Literal }
+func (is *IfStatement) String() string {
+	var out strings.Builder
+
+	out.WriteString("if ")
+	out.WriteString(is.Condition.String())
+	out.WriteString(" ")
+	out.WriteString(is.Consequence.String())
+
+	if is.Alternative != nil {
+		out.WriteString(" else ")
+		out.WriteString(is.Alternative.String())
+	}
+
+	return out.String()
+}

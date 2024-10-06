@@ -1,6 +1,9 @@
 package ast
 
-import "compiler/lexer"
+import (
+	"compiler/lexer"
+	"strings"
+)
 
 // VariableDeclaration represents a variable declaration statement.
 type VariableDeclaration struct {
@@ -16,6 +19,27 @@ func (vd *VariableDeclaration) expressionNode() {
 
 func (vd *VariableDeclaration) statementNode()       {}
 func (vd *VariableDeclaration) TokenLiteral() string { return vd.Token.Literal }
+func (vd *VariableDeclaration) String() string {
+	var out strings.Builder
+
+	out.WriteString("let ")
+	out.WriteString(vd.Name.String())
+
+	// Include type annotation if present
+	if vd.Type != nil {
+		out.WriteString(": ")
+		out.WriteString(vd.Type.String())
+	}
+
+	if vd.Value != nil {
+		out.WriteString(" = ")
+		out.WriteString(vd.Value.String())
+	}
+
+	out.WriteString(";")
+
+	return out.String()
+}
 
 // AssignmentStatement represents an assignment statement.
 type AssignmentStatement struct {

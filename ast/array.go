@@ -1,6 +1,9 @@
 package ast
 
-import "compiler/lexer"
+import (
+	"compiler/lexer"
+	"strings"
+)
 
 type ArrayLiteral struct {
 	Token    lexer.LangToken // The first token of the expression
@@ -14,3 +17,10 @@ func (es *ArrayLiteral) expressionNode() {
 
 func (es *ArrayLiteral) statementNode()       {}
 func (es *ArrayLiteral) TokenLiteral() string { return es.Token.Literal }
+func (al *ArrayLiteral) String() string {
+	var elements []string
+	for _, el := range al.Elements {
+		elements = append(elements, el.String())
+	}
+	return "[" + strings.Join(elements, ", ") + "]"
+}
