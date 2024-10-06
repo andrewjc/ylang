@@ -16,6 +16,21 @@ func (p *Parser) parseStatement() ast.Statement {
 	}
 }
 
+func (p *Parser) parseAssignmentExpression(left ast.ExpressionNode) ast.ExpressionNode {
+	expr := &ast.AssignmentExpression{
+		Token:    p.currentToken,
+		Left:     left,
+		Operator: p.currentToken.Literal, // "="
+	}
+
+	// Parse the right-hand side expression with lower precedence to allow chaining
+	precedence := p.currentPrecedence()
+	p.nextToken()
+	expr.Right = p.parseExpression(precedence)
+
+	return expr
+}
+
 func (p *Parser) parseLetStatement() *ast.LetStatement {
 	stmt := &ast.LetStatement{Token: p.currentToken}
 

@@ -19,52 +19,91 @@ func (p *Parser) isFunctionDefinition() bool {
 		- main() -> { printf("Hello, World!"); }
 		- main(argv, argc) -> { printf("Hello, World!"); }
 	*/
-	if p.currentTokenIs(TokenTypeIdentifier) && (p.peekTokenIs(TokenTypeLeftParenthesis) || p.peekTokenIs(TokenTypeLambdaArrow)) {
+	// Handle named functions
+	if p.currentTokenIs(TokenTypeFunction) {
 		return true
 	}
+	// Handle anonymous functions: '(', parameter list, ')', '->'
+	if p.currentTokenIs(TokenTypeLeftParenthesis) {
+		pos := p.lexer.Position
+		line := p.currentToken.Line
 
-	// handle anonymous methods / lambdas eg () -> { printf("Hello, World!"); } and (a) -> { printf("Hello {a}"); }
-	if p.currentTokenIs(TokenTypeLeftParenthesis) && (p.peekTokenIs(TokenTypeIdentifier) || p.peekTokenIs(TokenTypeRightParenthesis)) {
-		return true
+		// Attempt to parse parameters
+		_ = p.parseFunctionParameters()
+
+		// Check for '->' after parameters
+		if p.peekTokenIs(TokenTypeLambdaArrow) {
+			// Reset lexer position after lookahead
+			p.lexer.Position = pos
+			p.currentToken.Line = line
+			p.nextToken()
+			return true
+		} else {
+			// Not a function definition
+			p.lexer.Position = pos
+			p.currentToken.Line = line
+			p.nextToken()
+			return false
+		}
 	}
-
 	return false
 }
 
 func (p *Parser) parseFunctionDefinition() *ast.FunctionDefinition {
 	fn := &ast.FunctionDefinition{Token: p.currentToken}
 
-	if !p.isFunctionDefinition() {
-		line, pos := p.peekToken.Line, p.peekToken.Pos
-		snippet := p.lexer.GetCodeFragment(line, pos, DEFAULT_LOGGING_LEAD_LINES, DEFAULT_LOGGING_FOLLOW_LINES) // Get 10 characters around the error location
-		parseError := &ParserError{
-			Line:         line,
-			Pos:          pos,
-			Message:      fmt.Sprintf("Syntax error: Expected function definition, got %s", p.peekToken.Type),
-			CodeFragment: snippet,
-		}
-		fmt.Println(parseError)
+	// Optional 'function' keyword
+	if p.currentTokenIs(TokenTypeFunction) {
+		p.nextToken() // Consume 'function' keyword
+	}
+
+	// Function name (optional)
+	var fnName *ast.Identifier
+	if p.currentTokenIs(TokenTypeIdentifier) && p.peekTokenIs(TokenTypeLeftParenthesis) {
+		fnName = &ast.Identifier{Token: p.currentToken, Value: p.currentToken.Literal}
+		p.nextToken()
+	} else if p.currentTokenIs(TokenTypeLeftParenthesis) {
+		// Anonymous function, no name
+		fnName = nil
+	} else {
+		// Error
+		fmt.Println("Expected function name or '(' for anonymous function")
 		return nil
 	}
 
-	fn.Name = &ast.Identifier{Token: p.currentToken, Value: p.currentToken.Literal}
+	fn.Name = fnName
 
-	if !p.expectPeek(TokenTypeLeftParenthesis) {
+	if !p.currentTokenIs(TokenTypeLeftParenthesis) {
+		fmt.Println("Expected '(' after function name or 'function' keyword")
 		return nil
 	}
 
 	fn.Parameters = p.parseFunctionParameters()
 
-	if p.peekTokenIs(TokenTypeLambdaArrow) {
+	// Optional return type
+	if p.peekTokenIs(TokenTypeColon) {
+		p.nextToken() // skip ':'
 		p.nextToken()
-	} else {
-		if !p.expectPeek(TokenTypeLeftBrace) {
+		if !p.currentTokenIs(TokenTypeIdentifier) {
+			fmt.Println("Expected return type after ':'")
 			return nil
 		}
+		fn.ReturnType = &ast.Identifier{Token: p.currentToken, Value: p.currentToken.Literal}
 	}
 
-	fnBody := p.parseBlockStatement()
-	fn.Body = fnBody
+	if !p.expectPeek(TokenTypeLambdaArrow) {
+		fmt.Println("Expected '->' after function definition")
+		return nil
+	}
+
+	p.nextToken() // consume '->'
+
+	// Parse function body
+	if p.currentTokenIs(TokenTypeLeftBrace) {
+		fn.Body = p.parseBlockStatement()
+	} else {
+		fn.Body = p.parseExpression(LOWEST)
+	}
 
 	return fn
 }

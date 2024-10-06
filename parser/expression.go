@@ -42,22 +42,79 @@ func (p *Parser) parseInfixExpression(left ast.ExpressionNode) ast.ExpressionNod
 
 func (p *Parser) parseParenthesisExpression() ast.ExpressionNode {
 	/*
-		Handle special case where a lambda expression is provided as the object being assigned to a variable
+	   Handle special case where a lambda expression is provided as the object being assigned to a variable
 	*/
 
-	if p.isFunctionDefinition() {
-		return p.parseFunctionDefinition()
+	p.nextToken() // consume '('
+
+	if p.peekTokenIs(TokenTypeRightParenthesis) {
+		p.nextToken() // consume ')'
+		if p.peekTokenIs(TokenTypeLambdaArrow) {
+			p.nextToken() // consume '->'
+			lambda := &ast.LambdaExpression{Token: p.currentToken}
+			lambda.Parameters = []*ast.Identifier{}
+			p.nextToken()
+			if p.currentTokenIs(TokenTypeLeftBrace) {
+				lambda.Body = p.parseBlockStatement()
+			} else {
+				lambda.Body = p.parseExpression(LOWEST)
+			}
+			return lambda
+		} else {
+			// Empty parentheses expression
+			return nil
+		}
 	}
 
-	p.nextToken()
-	exp := p.parseExpression(LOWEST)
+	// Save current state to backtrack if needed
+	saveCurrentToken := p.currentToken
+	savePeekToken := p.peekToken
+
+	parameters := []*ast.Identifier{}
+	ident := &ast.Identifier{Token: p.currentToken, Value: p.currentToken.Literal}
+	parameters = append(parameters, ident)
+
+	for p.peekTokenIs(TokenTypeComma) {
+		p.nextToken() // consume ','
+		p.nextToken()
+		ident := &ast.Identifier{Token: p.currentToken, Value: p.currentToken.Literal}
+		parameters = append(parameters, ident)
+	}
 
 	if !p.expectPeek(TokenTypeRightParenthesis) {
-		fmt.Println("Expected ')' after expression")
-		return nil
+		// Not a lambda, restore tokens and parse as expression
+		p.currentToken = saveCurrentToken
+		p.peekToken = savePeekToken
+		p.nextToken() // consume '('
+		expr := p.parseExpression(LOWEST)
+		if !p.expectPeek(TokenTypeRightParenthesis) {
+			return nil
+		}
+		return expr
 	}
 
-	return exp
+	if p.peekTokenIs(TokenTypeLambdaArrow) {
+		p.nextToken() // consume '->'
+		lambda := &ast.LambdaExpression{Token: p.currentToken}
+		lambda.Parameters = parameters
+		p.nextToken()
+		if p.currentTokenIs(TokenTypeLeftBrace) {
+			lambda.Body = p.parseBlockStatement()
+		} else {
+			lambda.Body = p.parseExpression(LOWEST)
+		}
+		return lambda
+	} else {
+		// Not a lambda, restore tokens and parse as expression
+		p.currentToken = saveCurrentToken
+		p.peekToken = savePeekToken
+		p.nextToken() // consume '('
+		expr := p.parseExpression(LOWEST)
+		if !p.expectPeek(TokenTypeRightParenthesis) {
+			return nil
+		}
+		return expr
+	}
 }
 
 func (p *Parser) parseDotOperator(left ast.ExpressionNode) ast.ExpressionNode {
@@ -81,6 +138,6 @@ func (p *Parser) parseDotOperator(left ast.ExpressionNode) ast.ExpressionNode {
 }
 
 func (p *Parser) noPrefixParseFnError(t TokenType) {
-	msg := fmt.Sprintf("no prefix parse function for %s found", t)
+	msg := fmt.Sprintf("no prefix parse function for %s found at line %d, position %d", t, p.currentToken.Line, p.currentToken.Pos)
 	p.errors = append(p.errors, msg)
 }

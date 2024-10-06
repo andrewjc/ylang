@@ -15,8 +15,9 @@ const (
 	PRODUCT     // *
 	PREFIX      // -X or !X
 	CALL        // myFunction(X)
-	TERNARY     // condition ? trueExpression : falseExpression
-
+	INDEX       // array[index]
+	ASSIGN      // =
+	TERNARY     // ?:
 )
 
 var precedences = map[TokenType]int{
@@ -28,11 +29,12 @@ var precedences = map[TokenType]int{
 	TokenTypeMultiply:        PRODUCT,
 	TokenTypeDivide:          PRODUCT,
 	TokenTypeLeftParenthesis: CALL,
-	TokenTypeLeftBracket:     LOWEST,
-	TokenTypeDot:             LOWEST,
-	TokenTypeQuestionMark:    LOWEST,
-	TokenTypeLambdaArrow:     LOWEST,
-	TokenTypeIf:              LOWEST,
+	TokenTypeLeftBracket:     INDEX,
+	TokenTypeDot:             INDEX,
+	TokenTypeQuestionMark:    TERNARY,
+	TokenTypeLambdaArrow:     TERNARY,
+	TokenTypeIf:              TERNARY,
+	TokenTypeAssignment:      ASSIGN,
 }
 
 var DEFAULT_LOGGING_LEAD_LINES = 10
@@ -86,6 +88,7 @@ func NewParser(lexer *Lexer) *Parser {
 	p.registerInfix(TokenTypeQuestionMark, p.parseTraditionalTernaryExpression)
 	p.registerInfix(TokenTypeLambdaArrow, p.parseLambdaStyleTernaryExpression)
 	p.registerInfix(TokenTypeIf, p.parseInlineIfElseTernaryExpression)
+	p.registerInfix(TokenTypeAssignment, p.parseAssignmentExpression)
 
 	// Read two tokens, so currentToken and peekToken are both set
 	p.nextToken()
@@ -137,8 +140,8 @@ func (p *Parser) Errors() []string {
 }
 
 func (p *Parser) peekError(t TokenType) {
-	msg := fmt.Sprintf("expected next token to be %s, got %s instead",
-		t, p.peekToken.Type)
+	msg := fmt.Sprintf("expected next token to be %s, got %s instead at line %d, position %d",
+		t, p.peekToken.Type, p.currentToken.Line, p.currentToken.Pos)
 	p.errors = append(p.errors, msg)
 }
 
