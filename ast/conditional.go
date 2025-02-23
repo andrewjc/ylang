@@ -13,6 +13,10 @@ type IfStatement struct {
 	Alternative ExpressionNode
 }
 
+func (is *IfStatement) Accept(visitor Visitor) error {
+	return visitor.VisitIfStatement(is)
+}
+
 func (is *IfStatement) expressionNode() {
 	//TODO implement me
 	panic("implement me")

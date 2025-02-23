@@ -18,11 +18,13 @@ type Identifier struct {
 type ExpressionNode interface {
 	Node
 	expressionNode()
+	Accept(Visitor) error
 }
 
 type Statement interface {
 	Node
 	statementNode()
+	Accept(Visitor) error
 }
 
 func (i *Identifier) expressionNode()      {}

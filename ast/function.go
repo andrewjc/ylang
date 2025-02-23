@@ -21,7 +21,9 @@ func (es *FunctionDefinition) expressionNode() {
 
 func (es *FunctionDefinition) statementNode()       {}
 func (es *FunctionDefinition) TokenLiteral() string { return es.Token.Literal }
-
+func (fd *FunctionDefinition) Accept(v Visitor) error {
+	return v.VisitFunctionDefinition(fd)
+}
 func (fd *FunctionDefinition) String() string {
 	return fd.StringIndent(0)
 }

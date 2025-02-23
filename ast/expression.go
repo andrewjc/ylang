@@ -69,6 +69,10 @@ type DotOperator struct {
 	Right *Identifier
 }
 
+func (do *DotOperator) Accept(visitor Visitor) error {
+	return visitor.VisitDotOperator(do)
+}
+
 func (do *DotOperator) expressionNode()      {}
 func (do *DotOperator) TokenLiteral() string { return do.Token.Literal }
 func (do *DotOperator) String() string {

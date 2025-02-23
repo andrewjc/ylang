@@ -16,7 +16,9 @@ type VariableDeclaration struct {
 func (vd *VariableDeclaration) expressionNode() {
 	panic("implement me")
 }
-
+func (vd *VariableDeclaration) Accept(v Visitor) error {
+	return v.VisitVariableDeclaration(vd)
+}
 func (vd *VariableDeclaration) statementNode()       {}
 func (vd *VariableDeclaration) TokenLiteral() string { return vd.Token.Literal }
 func (vd *VariableDeclaration) String() string {

@@ -29,7 +29,7 @@ func (cg *CodeGenerator) mapType(typeName string) (types.Type, error) {
 	default:
 		// Check if it's a user-defined struct
 		if structType, exists := cg.Structs[typeName]; exists {
-			return structType, nil
+			return *structType, nil
 		}
 		// If not defined yet, attempt to define it based on AST
 		// This requires access to AST; adjust as necessary

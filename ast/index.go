@@ -8,6 +8,10 @@ type IndexExpression struct {
 	Index ExpressionNode
 }
 
+func (ie *IndexExpression) Accept(visitor Visitor) error {
+	return visitor.VisitIndexExpression(ie)
+}
+
 func (ie *IndexExpression) expressionNode()      {}
 func (ie *IndexExpression) TokenLiteral() string { return ie.Token.Literal }
 func (ie *IndexExpression) String() string {

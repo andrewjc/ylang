@@ -9,6 +9,10 @@ type TraditionalTernaryExpression struct {
 	FalseExpr ExpressionNode // The expression if the condition is false
 }
 
+func (tte *TraditionalTernaryExpression) Accept(visitor Visitor) error {
+	return visitor.VisitTraditionalTernaryExpression(tte)
+}
+
 func (tte *TraditionalTernaryExpression) expressionNode()      {}
 func (tte *TraditionalTernaryExpression) TokenLiteral() string { return tte.Token.Literal }
 func (tte *TraditionalTernaryExpression) String() string {
@@ -23,6 +27,10 @@ type LambdaStyleTernaryExpression struct {
 	FalseExpr ExpressionNode // The expression if the condition is false
 }
 
+func (aste *LambdaStyleTernaryExpression) Accept(visitor Visitor) error {
+	return visitor.VisitLambdaStyleTernaryExpression(aste)
+}
+
 func (aste *LambdaStyleTernaryExpression) expressionNode()      {}
 func (aste *LambdaStyleTernaryExpression) TokenLiteral() string { return aste.Token.Literal }
 func (aste *LambdaStyleTernaryExpression) String() string {
@@ -34,6 +42,10 @@ type InlineIfElseTernaryExpression struct {
 	Condition ExpressionNode // The condition expression
 	TrueExpr  ExpressionNode // The expression if the condition is true
 	FalseExpr ExpressionNode // The expression if the condition is false
+}
+
+func (iite *InlineIfElseTernaryExpression) Accept(visitor Visitor) error {
+	return visitor.VisitInlineIfElseTernaryExpression(iite)
 }
 
 func (iite *InlineIfElseTernaryExpression) expressionNode()      {}

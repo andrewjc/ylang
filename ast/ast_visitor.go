@@ -15,6 +15,14 @@ type Visitor interface {
 	VisitLambdaExpression(le *LambdaExpression) error
 	VisitMemberAccessExpression(mae *MemberAccessExpression) error
 	VisitAssignmentExpression(as *AssignmentExpression) error
+	VisitBlockStatement(bs *BlockStatement) error
+	VisitIndexExpression(ie *IndexExpression) error
+	VisitVariableDeclaration(vd *VariableDeclaration) error
+	VisitIfStatement(is *IfStatement) error
+	VisitTraditionalTernaryExpression(te *TraditionalTernaryExpression) error
+	VisitLambdaStyleTernaryExpression(aste *LambdaStyleTernaryExpression) error
+	VisitInlineIfElseTernaryExpression(iite *InlineIfElseTernaryExpression) error
+	VisitDotOperator(do *DotOperator) error
 
 	// ac: todo add more visit methods here
 }
