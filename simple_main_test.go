@@ -8,15 +8,14 @@ import (
 )
 
 func TestSimpleMain(t *testing.T) {
-
 	input := `main() -> {
-		let process = (input) -> {
-			return input * 2;
-		};
-		
-		let values = [1, 2, 3, 4, 5];
-		values.map(process).forEach(print);
-	}`
+        let process = (input) -> {
+            return input * 2;
+        };
+        
+        let values = [1, 2, 3, 4, 5];
+        values.map(process).forEach(print);
+    }`
 
 	lexer, err := l.NewLexerFromString(input)
 	if err != nil {
@@ -31,6 +30,9 @@ func TestSimpleMain(t *testing.T) {
 		}
 		t.FailNow()
 	}
+
+	// Print the AST for verification
+	t.Logf("AST:\n%s", program.MainFunction.String())
 
 	compilerInstance := c.NewCompiler(c.LLVM)
 	result := compilerInstance.Compile(program)

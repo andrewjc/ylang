@@ -14,19 +14,24 @@ type LambdaExpression struct {
 func (le *LambdaExpression) expressionNode()      {}
 func (le *LambdaExpression) TokenLiteral() string { return le.Token.Literal }
 func (le *LambdaExpression) String() string {
+	return le.StringIndent(0)
+}
+
+func (le *LambdaExpression) StringIndent(indent int) string {
+	indentStr := strings.Repeat("    ", indent)
 	var params []string
 	for _, param := range le.Parameters {
 		params = append(params, param.String())
 	}
-
 	var out strings.Builder
-	out.WriteString("(")
-	out.WriteString(strings.Join(params, ", "))
-	out.WriteString(") -> ")
+	out.WriteString("(" + strings.Join(params, ", ") + ") -> ")
 
-	if le.Body != nil {
+	// if the body is a block, print it on a new line with an extra indent
+	if block, ok := le.Body.(*BlockStatement); ok {
+		out.WriteString("\n")
+		out.WriteString(block.StringIndent(indent + 1))
+	} else if le.Body != nil {
 		out.WriteString(le.Body.String())
 	}
-
-	return out.String()
+	return indentStr + out.String()
 }

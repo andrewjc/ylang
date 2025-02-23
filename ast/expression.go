@@ -14,19 +14,14 @@ type LetStatement struct {
 func (ls *LetStatement) statementNode()       {}
 func (ls *LetStatement) TokenLiteral() string { return ls.Token.Literal }
 func (ls *LetStatement) String() string {
+	return ls.StringIndent(0)
+}
+
+func (ls *LetStatement) StringIndent(indent int) string {
+	indentStr := strings.Repeat("    ", indent)
 	var out strings.Builder
-
-	out.WriteString("let ")
-	out.WriteString(ls.Name.String())
-	out.WriteString(" = ")
-
-	if ls.Value != nil {
-		out.WriteString(ls.Value.String())
-	}
-
-	out.WriteString(";")
-
-	return out.String()
+	out.WriteString("let " + ls.Name.String() + " = " + ls.Value.String() + ";")
+	return indentStr + out.String()
 }
 
 type ReturnStatement struct {
@@ -37,17 +32,18 @@ type ReturnStatement struct {
 func (rs *ReturnStatement) statementNode()       {}
 func (rs *ReturnStatement) TokenLiteral() string { return rs.Token.Literal }
 func (rs *ReturnStatement) String() string {
+	return rs.StringIndent(0)
+}
+
+func (rs *ReturnStatement) StringIndent(indent int) string {
+	indentStr := strings.Repeat("    ", indent)
 	var out strings.Builder
-
 	out.WriteString("return ")
-
 	if rs.ReturnValue != nil {
 		out.WriteString(rs.ReturnValue.String())
 	}
-
 	out.WriteString(";")
-
-	return out.String()
+	return indentStr + out.String()
 }
 
 type ExpressionStatement struct {
@@ -58,10 +54,12 @@ type ExpressionStatement struct {
 func (es *ExpressionStatement) statementNode()       {}
 func (es *ExpressionStatement) TokenLiteral() string { return es.Token.Literal }
 func (es *ExpressionStatement) String() string {
-	if es.Expression != nil {
-		return es.Expression.String()
-	}
-	return ""
+	return es.StringIndent(0)
+}
+
+func (es *ExpressionStatement) StringIndent(indent int) string {
+	indentStr := strings.Repeat("    ", indent)
+	return indentStr + es.Expression.String()
 }
 
 // DotOperator

@@ -6,7 +6,7 @@ import (
 )
 
 func TestVariableDeclarationNumberLiteral(t *testing.T) {
-	input := "let x = 5;"
+	input := "main() -> {let x = 5;}"
 	lexer, _ := lexer.NewLexerFromString(input)
 	parser := NewParser(lexer)
 
