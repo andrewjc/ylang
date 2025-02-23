@@ -5,7 +5,6 @@ import (
 	"github.com/llir/llvm/ir"
 	"github.com/llir/llvm/ir/constant"
 	"github.com/llir/llvm/ir/types"
-	"github.com/llir/llvm/ir/value"
 )
 
 func (cg *CodeGenerator) VisitFunctionDefinition(fn *ast.FunctionDefinition) error {
@@ -45,42 +44,5 @@ func (cg *CodeGenerator) VisitFunctionDefinition(fn *ast.FunctionDefinition) err
 	// restore
 	cg.Block = oldBlock
 	cg.currentFunc = oldFunc
-	return nil
-}
-
-func (cg *CodeGenerator) VisitCallExpression(ce *ast.CallExpression) error {
-	// Evaluate the function expression (could be an identifier or lambda).
-	if err := ce.Function.Accept(cg); err != nil {
-		return err
-	}
-	fnVal := cg.lastValue
-
-	var args []value.Value
-	for _, argExpr := range ce.Arguments {
-		if err := argExpr.Accept(cg); err != nil {
-			return err
-		}
-		args = append(args, cg.lastValue)
-	}
-
-	// If fnVal is known function, we call it; else produce dummy i32 0.
-	switch actual := fnVal.(type) {
-	case *ir.Func:
-		call := cg.Block.NewCall(actual, args...)
-		cg.lastValue = call
-	}
-
-	return nil
-}
-
-func (cg *CodeGenerator) VisitBlockStatement(bs *ast.BlockStatement) error {
-	for _, stmt := range bs.Statements {
-		if stmt == nil {
-			continue
-		}
-		if err := stmt.Accept(cg); err != nil {
-			return err
-		}
-	}
 	return nil
 }

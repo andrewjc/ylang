@@ -19,6 +19,8 @@ type CodeGenerator struct {
 
 	// lastValue holds the most recently produced LLVM value by a node visit.
 	lastValue value.Value
+
+	inAssignmentLHS bool // are we visiting the left-hand side of an assignment?
 }
 
 func NewCodeGenerator() *CodeGenerator {

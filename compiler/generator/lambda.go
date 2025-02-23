@@ -14,7 +14,6 @@ func (cg *CodeGenerator) VisitLambdaExpression(le *ast.LambdaExpression) error {
 	fnType := types.NewFunc(types.I32)
 	irFunc := cg.Module.NewFunc(fnName, fnType.RetType)
 
-	// Instead of irFunc.NewParam, do it manually
 	for range le.Parameters {
 		param := ir.NewParam("", types.I32)
 		irFunc.Params = append(irFunc.Params, param)
@@ -39,6 +38,8 @@ func (cg *CodeGenerator) VisitLambdaExpression(le *ast.LambdaExpression) error {
 
 	cg.Block = oldBlock
 	cg.currentFunc = oldFunc
+
+	// Return the function as a "value" (function pointer).
 	cg.lastValue = irFunc
 	return nil
 }
