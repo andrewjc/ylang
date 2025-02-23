@@ -43,5 +43,8 @@ func TestSimpleMain(t *testing.T) {
 
 	if result.Output == "" {
 		t.Fatalf("Compiler output is empty")
+	} else {
+		print(result.Output)
 	}
+
 }

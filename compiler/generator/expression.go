@@ -86,5 +86,6 @@ func (cg *CodeGenerator) VisitInlineIfElseTernaryExpression(iite *ast.InlineIfEl
 
 func (cg *CodeGenerator) VisitDotOperator(do *ast.DotOperator) error {
 	//TODO implement me
-	panic("implement me")
+	//panic("implement me")
+	return nil
 }
