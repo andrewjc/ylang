@@ -7,6 +7,7 @@ type Program struct {
 	ClassDeclarations []*ClassDeclaration
 	Functions         []*FunctionDefinition
 	DataStructures    []*DataStructure
+	ImportStatements  []*ImportStatement
 }
 
 func (p *Program) String() string {

@@ -2,20 +2,21 @@ package generator
 
 import (
 	"compiler/ast"
+	"compiler/module"
 	"github.com/llir/llvm/ir"
 	"github.com/llir/llvm/ir/types"
 	"github.com/llir/llvm/ir/value"
-	"log"
 )
 
 // CodeGenerator implements the Visitor interface to generate LLVM IR.
 type CodeGenerator struct {
-	Module      *ir.Module
-	Functions   map[string]*ir.Func
-	Variables   map[string]value.Value
-	Structs     map[string]*types.Type
-	Block       *ir.Block
-	currentFunc *ir.Func
+	ModuleManager *module.ModuleManager
+	Module        *ir.Module
+	Functions     map[string]*ir.Func
+	Variables     map[string]value.Value
+	Structs       map[string]*types.Type
+	Block         *ir.Block
+	currentFunc   *ir.Func
 
 	// lastValue holds the most recently produced LLVM value by a node visit.
 	lastValue value.Value
@@ -25,11 +26,13 @@ type CodeGenerator struct {
 
 func NewCodeGenerator() *CodeGenerator {
 	m := ir.NewModule()
+	mm := module.NewModuleManager()
 	return &CodeGenerator{
-		Module:    m,
-		Functions: make(map[string]*ir.Func),
-		Variables: make(map[string]value.Value),
-		Structs:   make(map[string]*types.Type),
+		ModuleManager: mm,
+		Module:        m,
+		Functions:     make(map[string]*ir.Func),
+		Variables:     make(map[string]value.Value),
+		Structs:       make(map[string]*types.Type),
 
 		Block:       nil,
 		currentFunc: nil,
@@ -42,6 +45,14 @@ func (cg *CodeGenerator) VisitVariableDeclaration(vd *ast.VariableDeclaration) e
 }
 
 func (cg *CodeGenerator) VisitProgram(program *ast.Program) error {
+
+	// Visit each import statement.
+	for _, is := range program.ImportStatements {
+		if err := is.Accept(cg); err != nil {
+			return err
+		}
+	}
+
 	// Visit each normal function.
 	for _, fn := range program.Functions {
 		if err := fn.Accept(cg); err != nil {
@@ -53,8 +64,6 @@ func (cg *CodeGenerator) VisitProgram(program *ast.Program) error {
 		if err := program.MainFunction.Accept(cg); err != nil {
 			return err
 		}
-	} else {
-		log.Println("No main function found.")
 	}
 	return nil
 }

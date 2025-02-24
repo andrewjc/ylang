@@ -1,4 +1,4 @@
-// std/core.lang
+// std/core/print.y
 
 function print(x) -> {
     let len = 0;

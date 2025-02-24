@@ -74,6 +74,7 @@ func NewParser(lexer *Lexer) *Parser {
 	p.registerPrefix(TokenTypeLet, p.parseVariableDeclaration)
 	p.registerPrefix(TokenTypeLeftBrace, p.parseBlockStatement)
 	p.registerPrefix(TokenTypeSyscall, p.parseSysCallExpression)
+	//p.registerPrefix(TokenTypeImport, p.parseImportStatement)
 
 	p.infixParseFns = make(map[TokenType]infixParseFn)
 	p.registerInfix(TokenTypePlus, p.parseInfixExpression)
@@ -104,6 +105,12 @@ func (p *Parser) ParseProgram() *ast.Program {
 	// Parse class declarations, functions, and data structures
 	for !p.currentTokenIs(TokenTypeEOF) {
 		switch p.currentToken.Type {
+		case TokenTypeImport:
+			importStmt := p.parseImportStatement()
+			if importStmt != nil {
+				program.ImportStatements = append(program.ImportStatements, importStmt)
+			}
+
 		case TokenTypeIdentifier, TokenTypeType:
 			// If next token is '(' => parse a function definition
 			if p.peekTokenIs(TokenTypeLeftParenthesis) {
@@ -124,6 +131,8 @@ func (p *Parser) ParseProgram() *ast.Program {
 				dataStruct := p.parseDataStructure()
 				if dataStruct != nil {
 					program.DataStructures = append(program.DataStructures, dataStruct)
+				} else {
+					p.nextToken()
 				}
 			}
 

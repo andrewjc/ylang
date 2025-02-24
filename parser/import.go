@@ -3,7 +3,7 @@ package parser
 import "compiler/ast"
 import . "compiler/lexer"
 
-func (p *Parser) parseImportStatement() ast.Statement {
+func (p *Parser) parseImportStatement() *ast.ImportStatement {
 	stmt := &ast.ImportStatement{Token: p.currentToken}
 
 	if !p.expectPeek(TokenTypeString) {
