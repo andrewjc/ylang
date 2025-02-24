@@ -8,7 +8,11 @@ import (
 )
 
 func TestSimpleMain(t *testing.T) {
-	input := `main() -> {
+	input := `
+
+	import "stdlib/core";
+
+    main() -> {
         let process = (input) -> {
             return input * 2;
         };

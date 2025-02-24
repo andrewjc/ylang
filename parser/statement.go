@@ -11,6 +11,8 @@ func (p *Parser) parseStatement() ast.Statement {
 		return p.parseLetStatement()
 	case TokenTypeReturn:
 		return p.parseReturnStatement()
+	case TokenTypeImport:
+		return p.parseImportStatement()
 	default:
 		return p.parseExpressionStatement()
 	}

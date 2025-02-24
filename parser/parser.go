@@ -73,6 +73,7 @@ func NewParser(lexer *Lexer) *Parser {
 	p.registerPrefix(TokenTypeIf, p.parseIfStatement)
 	p.registerPrefix(TokenTypeLet, p.parseVariableDeclaration)
 	p.registerPrefix(TokenTypeLeftBrace, p.parseBlockStatement)
+	p.registerPrefix(TokenTypeSyscall, p.parseSysCallExpression)
 
 	p.infixParseFns = make(map[TokenType]infixParseFn)
 	p.registerInfix(TokenTypePlus, p.parseInfixExpression)
@@ -104,15 +105,20 @@ func (p *Parser) ParseProgram() *ast.Program {
 	for !p.currentTokenIs(TokenTypeEOF) {
 		switch p.currentToken.Type {
 		case TokenTypeIdentifier, TokenTypeType:
-			if p.peekTokenIs(TokenTypeArrow) {
+			// If next token is '(' => parse a function definition
+			if p.peekTokenIs(TokenTypeLeftParenthesis) {
+				function := p.parseFunctionDefinition()
+				if function != nil {
+					if function.Name != nil && function.Name.Value == "main" {
+						program.MainFunction = function
+					} else {
+						program.Functions = append(program.Functions, function)
+					}
+				}
+			} else if p.peekTokenIs(TokenTypeArrow) {
 				classDecl := p.parseClassDeclaration()
 				if classDecl != nil {
 					program.ClassDeclarations = append(program.ClassDeclarations, classDecl)
-				}
-			} else if p.peekTokenIs(TokenTypeLeftParenthesis) {
-				function := p.parseFunctionDefinition()
-				if function != nil {
-					program.Functions = append(program.Functions, function)
 				}
 			} else {
 				dataStruct := p.parseDataStructure()
@@ -120,18 +126,12 @@ func (p *Parser) ParseProgram() *ast.Program {
 					program.DataStructures = append(program.DataStructures, dataStruct)
 				}
 			}
+
 		default:
 			p.nextToken()
 		}
 	}
 
-	// find main function
-	for _, fn := range program.Functions {
-		if fn.Name.Value == "main" {
-			program.MainFunction = fn
-			break
-		}
-	}
 	return program
 }
 
@@ -180,21 +180,32 @@ func (p *Parser) parseCallExpression(function ast.ExpressionNode) ast.Expression
 func (p *Parser) parseExpressionList(end TokenType) []ast.ExpressionNode {
 	var list []ast.ExpressionNode
 
+	// If the very next token is our 'end', then it's an empty list.
 	if p.peekTokenIs(end) {
-		p.nextToken()
+		p.nextToken() // consume the ']' (or whatever 'end' is)
 		return list
 	}
 
-	p.nextToken()
-	list = append(list, p.parseExpression(LOWEST))
-
-	for p.peekTokenIs(TokenTypeComma) {
-		p.nextToken()
-		p.nextToken()
-		list = append(list, p.parseExpression(LOWEST))
+	// Otherwise, parse the first expression.
+	p.nextToken() // advance so p.currentToken is now the first expression
+	first := p.parseExpression(LOWEST)
+	if first != nil {
+		list = append(list, first)
 	}
 
+	// As long as the next token is a comma, consume it and parse another expression.
+	for p.peekTokenIs(TokenTypeComma) {
+		p.nextToken() // consume the comma
+		p.nextToken() // move to the next expression
+		expr := p.parseExpression(LOWEST)
+		if expr != nil {
+			list = append(list, expr)
+		}
+	}
+
+	// Finally, we expect the 'end' token. E.g. a closing bracket.
 	if !p.expectPeek(end) {
+		// If it's missing, we can return nil or report an error
 		return nil
 	}
 

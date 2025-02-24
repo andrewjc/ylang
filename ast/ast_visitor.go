@@ -23,6 +23,8 @@ type Visitor interface {
 	VisitLambdaStyleTernaryExpression(aste *LambdaStyleTernaryExpression) error
 	VisitInlineIfElseTernaryExpression(iite *InlineIfElseTernaryExpression) error
 	VisitDotOperator(do *DotOperator) error
+	VisitSyscallExpression(se *SyscallExpression) error
+	VisitImportStatement(is *ImportStatement) error
 
 	// ac: todo add more visit methods here
 }

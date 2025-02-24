@@ -55,6 +55,8 @@ const (
 	TokenTypeComment          TokenType = "Comment"
 	TokenTypeMultiLineComment TokenType = "MultiLineComment"
 	TokenTypeReturn           TokenType = "Return"
+	TokenTypeSyscall          TokenType = "Syscall"
+	TokenTypeImport           TokenType = "Import"
 )
 
 const TokenTypeFunction TokenType = "Function"
@@ -81,6 +83,8 @@ var Keywords = map[string]TokenType{
 	"type":     TokenTypeType,
 	"return":   TokenTypeReturn,
 	"asm":      TokenTypeAssembly,
+	"syscall":  TokenTypeSyscall,
+	"import":   TokenTypeImport,
 	// Add more keywords here
 }
 

@@ -2,6 +2,7 @@ package generator
 
 import (
 	"compiler/ast"
+	"fmt"
 	"github.com/llir/llvm/ir/constant"
 	"github.com/llir/llvm/ir/enum"
 	"github.com/llir/llvm/ir/types"
@@ -85,7 +86,25 @@ func (cg *CodeGenerator) VisitInlineIfElseTernaryExpression(iite *ast.InlineIfEl
 }
 
 func (cg *CodeGenerator) VisitDotOperator(do *ast.DotOperator) error {
-	//TODO implement me
-	//panic("implement me")
+	if err := do.Left.Accept(cg); err != nil {
+		return err
+	}
+	leftVal := cg.lastValue
+
+	// 3. Debug-print the 'leftVal' that we ended up with after codegen of the left expression
+	fmt.Printf("[DEBUG] Left expression yielded: %v\n", leftVal)
+
+	// 4. Check the identifier on the right (like "map", "forEach", etc.).
+	//    For now, we just debug-print it. Later, you might implement logic here.
+	methodName := do.Right.Value
+	fmt.Printf("[DEBUG] DotOperator right side is '%s'\n", methodName)
+
+	// 5. In a real implementation, you might set up actual code
+	//    depending on whether methodName == "map", "forEach", etc.
+	//    For now, we’ll just store the “leftVal” back so that
+	//    if this DotOperator is part of a chain, the compiler can proceed.
+	cg.lastValue = leftVal
+
+	// Return successfully with no real codegen yet
 	return nil
 }
