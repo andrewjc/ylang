@@ -150,7 +150,25 @@ func (l *Lexer) NextToken() (LangToken, error) {
 	case '*':
 		tok = newToken(TokenTypeMultiply, l.ch)
 	case '/':
-		tok = newToken(TokenTypeDivide, l.ch)
+		if l.peekChar() == '/' {
+			// Consume the comment
+			for l.ch != '\n' && l.ch != 0 {
+				l.ReadChar()
+			}
+			return l.NextToken()
+		} else if l.peekChar() == '*' {
+			// Consume the comment
+			for {
+				l.ReadChar()
+				if l.ch == '*' && l.peekChar() == '/' {
+					l.ReadChar() // Consume '/'
+					break
+				}
+			}
+			return l.NextToken()
+		} else {
+			tok = newToken(TokenTypeDivide, l.ch)
+		}
 	case '(':
 		tok = newToken(TokenTypeLeftParenthesis, l.ch)
 	case ')':

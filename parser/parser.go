@@ -74,6 +74,7 @@ func NewParser(lexer *Lexer) *Parser {
 	p.registerPrefix(TokenTypeLet, p.parseVariableDeclaration)
 	p.registerPrefix(TokenTypeLeftBrace, p.parseBlockStatement)
 	p.registerPrefix(TokenTypeSyscall, p.parseSysCallExpression)
+	//p.registerPrefix(TokenTypeComment, p.parseCommentExpression)
 	//p.registerPrefix(TokenTypeImport, p.parseImportStatement)
 
 	p.infixParseFns = make(map[TokenType]infixParseFn)
