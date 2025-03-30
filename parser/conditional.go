@@ -23,22 +23,32 @@ func (p *Parser) parseIfStatement() ast.ExpressionNode {
 	}
 
 	if !p.expectPeek(TokenTypeLeftBrace) {
-		fmt.Println("Expected left brace")
+		fmt.Println("Expected '{' for 'if' consequence")
 		return nil
 	}
 
-	ifStmt.Consequence = p.parseBlockStatement()
+	consequenceNode := p.parseBlockStatement()
+	if consequenceNode == nil {
+		return nil
+	}
+	ifStmt.Consequence = consequenceNode
+	p.nextToken()
 
 	if p.peekTokenIs(TokenTypeElse) {
-		p.nextToken()
-
-		if p.peekTokenIs(TokenTypeIf) {
-			p.nextToken()
-			ifStmt.Alternative = p.parseIfStatement().(*ast.IfStatement)
-		} else if p.peekTokenIs(TokenTypeLeftBrace) {
-			p.nextToken()
-			ifStmt.Alternative = p.parseBlockStatement().(*ast.BlockStatement)
+		p.nextToken()                   // consume 'else'
+		if p.peekTokenIs(TokenTypeIf) { // else if
+			p.nextToken() // consume 'if'
+			ifStmt.Alternative = p.parseIfStatement()
+		} else if p.peekTokenIs(TokenTypeLeftBrace) { // else { ... }
+			p.nextToken() // consume '{'
+			altNode := p.parseBlockStatement()
+			if altNode == nil {
+				return nil
+			}
+			ifStmt.Alternative = altNode
+			p.nextToken() // Consume '}'
 		} else {
+			p.errors = append(p.errors, fmt.Sprintf("Expected 'if' or '{' after 'else', got %s at line %d", p.peekToken.Type, p.peekToken.Line))
 			return nil
 		}
 	}
