@@ -25,6 +25,7 @@ type Visitor interface {
 	VisitDotOperator(do *DotOperator) error
 	VisitSyscallExpression(se *SyscallExpression) error
 	VisitImportStatement(is *ImportStatement) error
+	VisitAssemblyExpression(ae *AssemblyExpression) error
 
 	// ac: todo add more visit methods here
 }
