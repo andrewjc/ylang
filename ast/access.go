@@ -16,3 +16,7 @@ func (m *MemberAccessExpression) expressionNode() {
 	//TODO implement me
 	panic("implement me")
 }
+
+func (ie *MemberAccessExpression) String() string {
+	return "(" + ie.Left.String() + "." + ie.Member + ")"
+}

@@ -19,11 +19,11 @@ func (cg *CodeGenerator) endsWithReturn(block *ir.Block) bool {
 }
 
 // getVar returns the LLVM value for a named variable if it exists.
-func (cg *CodeGenerator) getVar(name string) value.Value {
+func (cg *CodeGenerator) getVar(name string) (value.Value, bool) {
 	if v, ok := cg.Variables[name]; ok {
-		return v
+		return v, true
 	}
-	return nil
+	return nil, false
 }
 
 // setVar sets the LLVM value for a named variable.
