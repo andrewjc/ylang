@@ -7,102 +7,113 @@ import (
 )
 
 func (p *Parser) isFunctionDefinition() bool {
-	/*
-		Handle checking if the current token is a function definition
-
-		If the current token is an identifier and the next token is a left parenthesis or lambda arrow, then it is a function definition
-
-		Examples:
-		- add(a, b) { return a + b; }
-		- (a, b) -> { return a + b; }
-		- (a, b) -> printf("a: %d, b: %d", a, b);
-		- main() -> { printf("Hello, World!"); }
-		- main(argv, argc) -> { printf("Hello, World!"); }
-	*/
-	// Handle named functions
-	if p.currentTokenIs(TokenTypeFunction) {
+	if p.currentTokenIs(TokenTypeFunction) && p.peekTokenIs(TokenTypeIdentifier) && p.peekTokenAtIndex(1).Type == TokenTypeLeftParenthesis {
 		return true
 	}
-	// Handle anonymous functions: '(', parameter list, ')', '->'
+	if p.currentTokenIs(TokenTypeIdentifier) && p.peekTokenIs(TokenTypeLeftParenthesis) {
+		return true
+	}
 	if p.currentTokenIs(TokenTypeLeftParenthesis) {
-		pos := p.lexer.Position
-		line := p.currentToken.Line
-
-		// Attempt to parse parameters
-		_ = p.parseFunctionParameters()
-
-		// Check for '->' after parameters
-		if p.peekTokenIs(TokenTypeLambdaArrow) {
-			// Reset lexer position after lookahead
-			p.lexer.Position = pos
-			p.currentToken.Line = line
-			p.nextToken()
-			return true
-		} else {
-			// Not a function definition
-			p.lexer.Position = pos
-			p.currentToken.Line = line
-			p.nextToken()
-			return false
-		}
+		return false
 	}
 	return false
 }
 
 func (p *Parser) parseFunctionDefinition() *ast.FunctionDefinition {
+	startTokenLine := p.currentToken.Line
+	startTokenType := p.currentToken.Type
+
 	fn := &ast.FunctionDefinition{Token: p.currentToken}
 
-	// Optional 'function' keyword
 	if p.currentTokenIs(TokenTypeFunction) {
-		p.nextToken() // Consume 'function' keyword
+		fn.Token = p.currentToken
+		p.nextToken()
 	}
 
-	// Function name (optional)
-	var fnName *ast.Identifier
-	if p.currentTokenIs(TokenTypeIdentifier) && p.peekTokenIs(TokenTypeLeftParenthesis) {
-		fnName = &ast.Identifier{Token: p.currentToken, Value: p.currentToken.Literal}
-		p.nextToken()
+	if p.currentTokenIs(TokenTypeIdentifier) {
+		if p.peekTokenIs(TokenTypeLeftParenthesis) {
+			fn.Name = &ast.Identifier{Token: p.currentToken, Value: p.currentToken.Literal}
+			p.nextToken()
+		} else {
+			if startTokenType == TokenTypeFunction {
+				p.errors = append(p.errors, fmt.Sprintf("Expected identifier followed by '(' after 'function' keyword, got '%s' at line %d", p.currentToken.Literal, p.currentToken.Line))
+				p.advanceToRecoveryPoint()
+				return nil
+			}
+
+			p.errors = append(p.errors, fmt.Sprintf("Internal parser error: parseFunctionDefinition called incorrectly for identifier '%s' at line %d", p.currentToken.Literal, p.currentToken.Line))
+			return nil
+		}
 	} else if p.currentTokenIs(TokenTypeLeftParenthesis) {
-		// Anonymous function, no name
-		fnName = nil
+		if startTokenType == TokenTypeFunction {
+			p.errors = append(p.errors, fmt.Sprintf("Cannot use 'function' keyword with anonymous function definition starting at line %d", startTokenLine))
+			p.advanceToRecoveryPoint()
+			return nil
+		}
+		fn.Name = nil
 	} else {
-		// Error
-		fmt.Println("Expected function name or '(' for anonymous function")
+		p.errors = append(p.errors, fmt.Sprintf("Expected function name identifier or '(' after '%s' keyword, got %s at line %d", startTokenType, p.currentToken.Type, p.currentToken.Line))
+		p.advanceToRecoveryPoint()
 		return nil
 	}
 
-	fn.Name = fnName
-
 	if !p.currentTokenIs(TokenTypeLeftParenthesis) {
-		fmt.Println("Expected '(' after function name or 'function' keyword")
+		p.errors = append(p.errors, fmt.Sprintf("Expected '(' for function parameters, got %s at line %d", p.currentToken.Type, p.currentToken.Line))
+		p.advanceToRecoveryPoint()
 		return nil
 	}
 
 	fn.Parameters = p.parseFunctionParameters()
-
-	// Optional return type
-	if p.peekTokenIs(TokenTypeColon) {
-		p.nextToken() // skip ':'
-		p.nextToken()
-		if !p.currentTokenIs(TokenTypeIdentifier) {
-			fmt.Println("Expected return type after ':'")
-			return nil
-		}
-		fn.ReturnType = &ast.Identifier{Token: p.currentToken, Value: p.currentToken.Literal}
-	}
-
-	if !p.expectPeek(TokenTypeLambdaArrow) {
-		fmt.Println("Expected '->' after function definition")
+	if fn.Parameters == nil {
+		p.advanceToRecoveryPoint()
 		return nil
 	}
 
-	p.nextToken() // consume '->'
+	if p.peekTokenIs(TokenTypeColon) {
+		p.nextToken() // Consume ')'
+		p.nextToken() // Consume ':'
 
-	// Parse function body
+		if !p.currentTokenIs(TokenTypeIdentifier) {
+			p.errors = append(p.errors, fmt.Sprintf("Expected return type identifier after ':', got %s at line %d", p.currentToken.Type, p.currentToken.Line))
+			p.advanceToRecoveryPoint()
+			return nil
+		}
+		fn.ReturnType = &ast.Identifier{Token: p.currentToken, Value: p.currentToken.Literal}
+		p.nextToken()
+	} else {
+		p.nextToken() // Consume ')'
+	}
+
+	if !p.currentTokenIs(TokenTypeLambdaArrow) {
+		p.errors = append(p.errors, fmt.Sprintf("Expected '->' after function signature, got '%s' instead at line %d", p.currentToken.Literal, p.currentToken.Line))
+		p.advanceToRecoveryPoint()
+		return nil
+	}
+	fn.Token = p.currentToken
+	p.nextToken()
+
 	if p.currentTokenIs(TokenTypeLeftBrace) {
-		fn.Body = p.parseBlockStatement()
+		bodyNode := p.parseBlockStatement()
+		if bodyNode == nil {
+			p.advanceToRecoveryPoint()
+			return nil
+		}
+		fn.Body = bodyNode
+		if p.currentTokenIs(TokenTypeSemicolon) {
+			p.nextToken()
+		}
 	} else {
 		fn.Body = p.parseExpression(LOWEST)
+		if fn.Body == nil {
+			if !p.errorsEncounteredSince(len(p.errors)) {
+				p.errors = append(p.errors, fmt.Sprintf("Failed to parse function body expression at line %d", p.currentToken.Line))
+			}
+			p.advanceToRecoveryPoint()
+			return nil
+		}
+		if p.currentTokenIs(TokenTypeSemicolon) {
+			p.nextToken()
+		}
 	}
 
 	return fn
@@ -111,6 +122,11 @@ func (p *Parser) parseFunctionDefinition() *ast.FunctionDefinition {
 func (p *Parser) parseFunctionParameters() []*ast.Identifier {
 	identifiers := []*ast.Identifier{}
 
+	if !p.currentTokenIs(TokenTypeLeftParenthesis) {
+		p.errors = append(p.errors, fmt.Sprintf("Internal Error: parseFunctionParameters called without '(' token at line %d", p.currentToken.Line))
+		return nil
+	}
+
 	if p.peekTokenIs(TokenTypeRightParenthesis) {
 		p.nextToken()
 		return identifiers
@@ -118,17 +134,34 @@ func (p *Parser) parseFunctionParameters() []*ast.Identifier {
 
 	p.nextToken()
 
-	ident := &ast.Identifier{Token: p.currentToken, Value: p.currentToken.Literal}
-	identifiers = append(identifiers, ident)
-
-	for p.peekTokenIs(TokenTypeComma) {
-		p.nextToken()
-		p.nextToken()
-		ident := &ast.Identifier{Token: p.currentToken, Value: p.currentToken.Literal}
-		identifiers = append(identifiers, ident)
+	if p.currentTokenIs(TokenTypeRightParenthesis) {
+		return identifiers
 	}
 
-	if !p.expectPeek(TokenTypeRightParenthesis) {
+	if !p.currentTokenIs(TokenTypeIdentifier) {
+		p.errors = append(p.errors, fmt.Sprintf("Expected identifier or ')' in parameter list, got %s at line %d", p.currentToken.Type, p.currentToken.Line))
+		p.advanceToRecoveryPoint()
+		return nil
+	}
+	ident := &ast.Identifier{Token: p.currentToken, Value: p.currentToken.Literal}
+	identifiers = append(identifiers, ident)
+	p.nextToken()
+
+	for p.currentTokenIs(TokenTypeComma) {
+		p.nextToken()
+		if !p.currentTokenIs(TokenTypeIdentifier) {
+			p.errors = append(p.errors, fmt.Sprintf("Expected identifier after comma in parameter list, got %s at line %d", p.currentToken.Type, p.currentToken.Line))
+			p.advanceToRecoveryPoint()
+			return nil
+		}
+		ident := &ast.Identifier{Token: p.currentToken, Value: p.currentToken.Literal}
+		identifiers = append(identifiers, ident)
+		p.nextToken()
+	}
+
+	if !p.currentTokenIs(TokenTypeRightParenthesis) {
+		p.errors = append(p.errors, fmt.Sprintf("Expected ')' to end parameter list, got %s '%s' instead at line %d", p.currentToken.Type, p.currentToken.Literal, p.currentToken.Line))
+		p.advanceToRecoveryPoint()
 		return nil
 	}
 
