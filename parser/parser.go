@@ -102,46 +102,99 @@ func NewParser(lexer *Lexer) *Parser {
 
 func (p *Parser) ParseProgram() *ast.Program {
 	program := &ast.Program{}
+	program.Functions = []*ast.FunctionDefinition{}
+	program.ClassDeclarations = []*ast.ClassDeclaration{}
+	program.DataStructures = []*ast.DataStructure{}
+	program.ImportStatements = []*ast.ImportStatement{}
 
-	// Parse class declarations, functions, and data structures
 	for !p.currentTokenIs(TokenTypeEOF) {
+		parseStartPos := p.lexer.Position
+		parseStartToken := p.currentToken
+
+		var parsedItem bool = false // if current token was consumed by a parser
+
 		switch p.currentToken.Type {
 		case TokenTypeImport:
-			importStmt := p.parseImportStatement()
-			if importStmt != nil {
-				program.ImportStatements = append(program.ImportStatements, importStmt)
+			stmtNode := p.parseImportStatement()
+			if stmtNode != nil {
+				program.ImportStatements = append(program.ImportStatements, stmtNode)
+				parsedItem = true
 			}
 
-		case TokenTypeIdentifier, TokenTypeType:
-			// If next token is '(' => parse a function definition
-			if p.peekTokenIs(TokenTypeLeftParenthesis) {
-				function := p.parseFunctionDefinition()
-				if function != nil {
-					if function.Name != nil && function.Name.Value == "main" {
-						program.MainFunction = function
+		case TokenTypeFunction, TokenTypeIdentifier:
+			looksLikeFunc := (p.currentTokenIs(TokenTypeFunction) && p.peekTokenIs(TokenTypeIdentifier)) ||
+				(p.currentTokenIs(TokenTypeIdentifier) && p.peekTokenIs(TokenTypeLeftParenthesis))
+
+			if looksLikeFunc {
+				funcNode := p.parseFunctionDefinition()
+				if funcNode != nil {
+					if funcNode.Name != nil && funcNode.Name.Value == "main" {
+						if program.MainFunction != nil {
+							p.errors = append(p.errors, fmt.Sprintf("Redefinition of main function at line %d", funcNode.Token.Line))
+						}
+						program.MainFunction = funcNode
 					} else {
-						program.Functions = append(program.Functions, function)
+						program.Functions = append(program.Functions, funcNode)
+					}
+					parsedItem = true
+				}
+			} else if p.currentTokenIs(TokenTypeIdentifier) {
+				isDecl := false
+				if p.peekTokenIs(TokenTypeArrow) || p.peekTokenIs(TokenTypeAssignment) || p.peekTokenIs(TokenTypeColon) {
+					if p.peekTokenIs(TokenTypeArrow) {
+						classNode := p.parseClassDeclaration()
+						if classNode != nil {
+							program.ClassDeclarations = append(program.ClassDeclarations, classNode)
+							isDecl = true
+						}
+					} else {
+						dataNode := p.parseDataStructure()
+						if dataNode != nil {
+							program.DataStructures = append(program.DataStructures, dataNode)
+							isDecl = true
+						}
 					}
 				}
-			} else if p.peekTokenIs(TokenTypeArrow) {
-				classDecl := p.parseClassDeclaration()
-				if classDecl != nil {
-					program.ClassDeclarations = append(program.ClassDeclarations, classDecl)
+				if isDecl {
+					parsedItem = true
+				} else {
+					p.errors = append(p.errors, fmt.Sprintf("Syntax error: Unexpected identifier '%s' at top level near line %d.", p.currentToken.Literal, p.currentToken.Line))
 				}
 			} else {
-				dataStruct := p.parseDataStructure()
-				if dataStruct != nil {
-					program.DataStructures = append(program.DataStructures, dataStruct)
-				} else {
-					p.nextToken()
-				}
+				p.errors = append(p.errors, fmt.Sprintf("Syntax error: Expected identifier after 'function' near line %d.", p.currentToken.Line))
 			}
 
+		case TokenTypeType, TokenTypeData:
+			if p.currentToken.Type == TokenTypeType {
+				classNode := p.parseClassDeclaration()
+				if classNode != nil {
+					program.ClassDeclarations = append(program.ClassDeclarations, classNode)
+					parsedItem = true
+				}
+			} else {
+				dataNode := p.parseDataStructure()
+				if dataNode != nil {
+					program.DataStructures = append(program.DataStructures, dataNode)
+					parsedItem = true
+				}
+			}
+		case TokenTypeSemicolon:
+			p.nextToken()
+			parsedItem = true
+
 		default:
+			p.errors = append(p.errors, fmt.Sprintf("Syntax error: Unexpected token '%s' (%s) at top level near line %d.", p.currentToken.Literal, p.currentToken.Type, p.currentToken.Line))
+		}
+
+		if !p.currentTokenIs(TokenTypeEOF) && !parsedItem && p.lexer.Position == parseStartPos && p.currentToken.Type == parseStartToken.Type {
+			p.errors = append(p.errors, fmt.Sprintf("[CRITICAL] Parser loop stuck on token '%s' (%s) near line %d. Forcing advance.", p.currentToken.Literal, p.currentToken.Type, p.currentToken.Line))
 			p.nextToken()
 		}
 	}
 
+	if program.MainFunction == nil {
+		fmt.Println("[INFO] No main function defined in the program.")
+	}
 	return program
 }
 
@@ -178,6 +231,12 @@ func (p *Parser) currentPrecedence() int {
 }
 
 func (p *Parser) parseIdentifier() ast.ExpressionNode {
+	if _, isKeyword := Keywords[p.currentToken.Literal]; isKeyword {
+		if p.currentToken.Type != TokenTypeIf {
+			p.errors = append(p.errors, fmt.Sprintf("unexpected keyword '%s' used as expression at line %d", p.currentToken.Literal, p.currentToken.Line))
+			return nil
+		}
+	}
 	return &ast.Identifier{Token: p.currentToken, Value: p.currentToken.Literal}
 }
 
@@ -190,32 +249,48 @@ func (p *Parser) parseCallExpression(function ast.ExpressionNode) ast.Expression
 func (p *Parser) parseExpressionList(end TokenType) []ast.ExpressionNode {
 	var list []ast.ExpressionNode
 
-	// If the very next token is our 'end', then it's an empty list.
 	if p.peekTokenIs(end) {
-		p.nextToken() // consume the ']' (or whatever 'end' is)
+		p.nextToken()
 		return list
 	}
 
-	// Otherwise, parse the first expression.
-	p.nextToken() // advance so p.currentToken is now the first expression
-	first := p.parseExpression(LOWEST)
-	if first != nil {
-		list = append(list, first)
-	}
+	p.nextToken()
 
-	// As long as the next token is a comma, consume it and parse another expression.
-	for p.peekTokenIs(TokenTypeComma) {
-		p.nextToken() // consume the comma
-		p.nextToken() // move to the next expression
-		expr := p.parseExpression(LOWEST)
-		if expr != nil {
-			list = append(list, expr)
+	firstExpr := p.parseExpression(LOWEST)
+	if firstExpr == nil {
+		for !p.currentTokenIs(end) && !p.currentTokenIs(TokenTypeEOF) {
+			p.nextToken()
 		}
+		if p.currentTokenIs(end) {
+			// p.nextToken() // Consume end token?
+		}
+		return nil
+	}
+	list = append(list, firstExpr)
+
+	for p.peekTokenIs(TokenTypeComma) {
+		p.nextToken()
+		p.nextToken()
+
+		if p.currentTokenIs(end) {
+			p.errors = append(p.errors, fmt.Sprintf("Unexpected '%s' after comma in list at line %d", p.currentToken.Literal, p.currentToken.Line))
+			break
+		}
+
+		nextExpr := p.parseExpression(LOWEST)
+		if nextExpr == nil {
+			for !p.currentTokenIs(end) && !p.currentTokenIs(TokenTypeEOF) {
+				p.nextToken()
+			}
+			if p.currentTokenIs(end) {
+				// p.nextToken() // Consume end token?
+			}
+			return nil
+		}
+		list = append(list, nextExpr)
 	}
 
-	// Finally, we expect the 'end' token. E.g. a closing bracket.
 	if !p.expectPeek(end) {
-		// If it's missing, we can return nil or report an error
 		return nil
 	}
 
