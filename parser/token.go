@@ -7,7 +7,23 @@ import (
 
 func (p *Parser) nextToken() {
 	p.currentToken = p.peekToken
+	// Get the next token from the lexer, handling potential lexer errors
 	p.peekToken, p.peekTokenErr = p.lexer.NextToken()
+	// If lexer returned an error, store it
+	if p.peekTokenErr != nil && p.peekToken.Type != TokenTypeEOF { // Don't treat EOF signal as error here
+		// Avoid adding duplicate lexer errors if already reported
+		isDuplicate := false
+		errMsg := fmt.Sprintf("Lexer error: %v at line %d, pos %d", p.peekTokenErr, p.peekToken.Line, p.peekToken.Pos)
+		for _, err := range p.errors {
+			if err == errMsg {
+				isDuplicate = true
+				break
+			}
+		}
+		if !isDuplicate {
+			p.errors = append(p.errors, errMsg)
+		}
+	}
 }
 
 func (p *Parser) currentTokenIs(t TokenType) bool {
