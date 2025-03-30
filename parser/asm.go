@@ -6,12 +6,37 @@ import (
 	"fmt"
 )
 
-func (p *Parser) parseAssemblyStatement() *ast.AssemblyStatement {
-	stmt := &ast.AssemblyStatement{Token: p.currentToken}
-	if !p.expectPeek(TokenTypeString) {
-		fmt.Println("Expected string after 'assembly'")
+func (p *Parser) parseAssemblyStatement() ast.ExpressionNode {
+	// eg:
+	/*
+		asm('
+			mov src, dst
+		');
+	*/
+
+	expr := &ast.AssemblyExpression{Token: p.currentToken}
+
+	if !p.expectPeek(TokenTypeLeftParenthesis) {
+		p.errors = append(p.errors, fmt.Sprintf("expected '(' after 'asm', got %s", p.peekToken.Type))
 		return nil
 	}
-	stmt.Code = p.parseStringLiteral().(*ast.StringLiteral)
-	return stmt
+
+	if !p.expectPeek(TokenTypeString) {
+		p.errors = append(p.errors, fmt.Sprintf("expected string literal for assembly code, got %s", p.peekToken.Type))
+		return nil
+	}
+	expr.Code = p.parseStringLiteral().(*ast.StringLiteral)
+
+	// Check for optional arguments
+	if p.peekTokenIs(TokenTypeComma) {
+		p.nextToken() // Consume ','
+		expr.Args = p.parseExpressionList(TokenTypeRightParenthesis)
+	} else if p.expectPeek(TokenTypeRightParenthesis) {
+		expr.Args = []ast.ExpressionNode{}
+	} else {
+		p.errors = append(p.errors, fmt.Sprintf("expected ',' or ')' after assembly code string, got %s", p.peekToken.Type))
+		return nil
+	}
+
+	return expr
 }
