@@ -30,38 +30,12 @@ type CodeGenerator struct {
 func NewCodeGenerator() *CodeGenerator {
 	m := ir.NewModule()
 	mm := module.NewModuleManager()
-
-	// Pre-declare known builtins/intrinsics
-	funcs := make(map[string]*ir.Func)
-
-	// --- Builtin: builtin_print_int(i32) -> void ---
-	printIntSig := types.NewFunc(types.Void, types.I32)
-	printIntFunc := m.NewFunc("builtin_print_int", printIntSig.RetType, ir.NewParam("val", printIntSig.Params[0]))
-	printIntEntry := printIntFunc.NewBlock("entry")
-	printIntEntry.NewRet(nil) // Return void
-	funcs["builtin_print_int"] = printIntFunc
-
-	// --- Builtin: builtin_print_newline() -> void ---
-	printNewlineSig := types.NewFunc(types.Void)
-	printNewlineFunc := m.NewFunc("builtin_print_newline", printNewlineSig.RetType)
-	printNewlineEntry := printNewlineFunc.NewBlock("entry")
-	printNewlineEntry.NewRet(nil) // Return void
-	funcs["builtin_print_newline"] = printNewlineFunc
-
-	// --- Array builtins just placeholders for now
-	arrayMapRetType := types.NewPointer(types.I32)
-	arrayMapFunc := m.NewFunc("builtin_array_map", arrayMapRetType)
-	funcs["builtin_array_map"] = arrayMapFunc
-
-	// ForEach: Takes array ptr, callback ptr. Returns void.
-	arrayForEachRetType := types.Void
-	arrayForEachFunc := m.NewFunc("builtin_array_forEach", arrayForEachRetType)
-	funcs["builtin_array_forEach"] = arrayForEachFunc
+	builtInManager := NewBuiltInManager(m)
 
 	return &CodeGenerator{
 		ModuleManager: mm,
 		Module:        m,
-		Functions:     funcs, // Initialize with builtins
+		Functions:     builtInManager.GetProvidedFunctionsMap(),
 		Variables:     make(map[string]value.Value),
 		Structs:       make(map[string]*types.Type),
 		Block:         nil,
