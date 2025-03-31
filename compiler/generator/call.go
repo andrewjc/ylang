@@ -105,25 +105,56 @@ func (cg *CodeGenerator) VisitCallExpression(ce *ast.CallExpression) error {
 }
 
 func (cg *CodeGenerator) handleMethodCall(objReceiver value.Value, methodName string, args []value.Value) error {
-	var objType types.Type
-	if ptrType, isPtr := objReceiver.Type().(*types.PointerType); isPtr {
-		objType = ptrType.ElemType
+	// 1. Get receiver type info
+	objPtrType, ok := objReceiver.Type().(*types.PointerType)
+	if !ok {
+		return fmt.Errorf("method call receiver is not a pointer, but %T", objReceiver.Type())
+	}
+	objStructType, ok := objPtrType.ElemType.(*types.StructType)
+	if !ok {
+		return fmt.Errorf("method call receiver does not point to a struct, but %T", objPtrType.ElemType)
+	}
+	typeName := objStructType.Name() // Get "Array"
+
+	fmt.Printf("[DEBUG] Method Call: receiverType=%s, method=%s\n", typeName, methodName)
+
+	// 2. Find the LLVM function for the method
+	// How to link AST MethodDeclaration to LLVM ir.Func?
+	// Assume a naming convention or store mapping during class processing.
+	// Convention: ClassName_MethodName? e.g., "Array_map"
+	mangledName := typeName + "_" + methodName // Simple mangling
+	llvmMethodFunc, funcExists := cg.Functions[mangledName]
+
+	if !funcExists {
+		// Fallback: Maybe it's a built-in method implemented directly in Go?
+		// This section needs refinement based on how stdlib/builtins are truly handled.
+		// For now, let's assume all methods MUST be defined in YLang.
+		return fmt.Errorf("method '%s' not found for type '%s' (tried mangled name '%s')", methodName, typeName, mangledName)
+	}
+
+	// 3. Prepare arguments (prepend self)
+	allArgs := append([]value.Value{objReceiver}, args...) // objReceiver is 'self'
+
+	// 4. Check argument count (LLVM func params should be N+1)
+	if len(llvmMethodFunc.Sig.Params) != len(allArgs) {
+		return fmt.Errorf("argument count mismatch for method call '%s.%s': expected %d (including self), got %d", typeName, methodName, len(llvmMethodFunc.Sig.Params), len(allArgs))
+	}
+
+	// 5. Type check arguments (TODO)
+	// for i, arg := range allArgs {
+	//    if !arg.Type().Equal(llvmMethodFunc.Sig.Params[i]) { ... error ... }
+	// }
+
+	// 6. Generate the call instruction
+	callInst := cg.Block.NewCall(llvmMethodFunc, allArgs...)
+	callInst.SetName(methodName + "_res")
+
+	// 7. Set lastValue if method returns something
+	if !llvmMethodFunc.Sig.RetType.Equal(types.Void) {
+		cg.lastValue = callInst
 	} else {
-		return fmt.Errorf("method call receiver is not a pointer, but %T (%s)", objReceiver, objReceiver.Type())
+		cg.lastValue = nil
 	}
 
-	fmt.Printf("[DEBUG] Method Call: receiverType=%s, method=%s\n", objType, methodName)
-
-	if arrayType, isArray := objType.(*types.ArrayType); isArray {
-		switch methodName {
-		case "map":
-			return cg.generateArrayMap(objReceiver, arrayType, args)
-		case "forEach":
-			return cg.generateArrayForEach(objReceiver, arrayType, args)
-		default:
-			return fmt.Errorf("unknown method '%s' for array type %s", methodName, objType)
-		}
-	}
-
-	return fmt.Errorf("method call '%s' not supported on type %s", methodName, objType)
+	return nil
 }

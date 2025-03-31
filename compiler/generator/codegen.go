@@ -15,7 +15,7 @@ type CodeGenerator struct {
 	Module        *ir.Module
 	Functions     map[string]*ir.Func
 	Variables     map[string]value.Value
-	Structs       map[string]*types.Type
+	Structs       map[string]types.Type
 	Block         *ir.Block
 	currentFunc   *ir.Func
 
@@ -37,7 +37,7 @@ func NewCodeGenerator() *CodeGenerator {
 		Module:        m,
 		Functions:     builtInManager.GetProvidedFunctionsMap(),
 		Variables:     make(map[string]value.Value),
-		Structs:       make(map[string]*types.Type),
+		Structs:       make(map[string]types.Type),
 		Block:         nil,
 		currentFunc:   nil,
 		lastValue:     nil,
@@ -182,4 +182,18 @@ func (cg *CodeGenerator) declareFunction(fn *ast.FunctionDefinition) error {
 	cg.Functions[fnName] = irFunc
 	fmt.Printf("[DEBUG] Stored function '%s' in Functions map.\n", fnName)
 	return nil
+}
+
+func (cg *CodeGenerator) resolveStructType(typeName string) (*types.StructType, error) {
+	t, ok := cg.Structs[typeName]
+	if !ok {
+		// Type definition should have been processed before trying to resolve it.
+		return nil, fmt.Errorf("struct type '%s' not defined or resolved", typeName)
+	}
+	// Check if the retrieved type is actually a struct type
+	st, ok := t.(*types.StructType)
+	if !ok {
+		return nil, fmt.Errorf("type '%s' found but is not a struct type (%T)", typeName, t)
+	}
+	return st, nil
 }
