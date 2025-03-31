@@ -18,7 +18,7 @@ func NewBuiltInManager(m *ir.Module) *BuiltInManager {
 		funcs: make(map[string]*ir.Func),
 	}
 	bm.initBuiltInFuncs(m)
-	return m
+	return bm
 }
 
 func (bm *BuiltInManager) GetProvidedFunctionsMap() map[string]*ir.Func {

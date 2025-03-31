@@ -53,13 +53,3 @@ func (cg *CodeGenerator) VisitLetStatement(ls *ast.LetStatement) error {
 	}
 	return nil
 }
-
-func (cg *CodeGenerator) VisitMemberAccessExpression(mae *ast.MemberAccessExpression) error {
-	// Minimal stub: generate code for the left, ignore the member for now.
-	if err := mae.Left.Accept(cg); err != nil {
-		return err
-	}
-	// We are not producing anything real, so just clear or reuse lastValue
-	cg.lastValue = nil
-	return nil
-}

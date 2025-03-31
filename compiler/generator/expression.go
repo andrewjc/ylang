@@ -16,16 +16,6 @@ func (cg *CodeGenerator) VisitExpressionStatement(es *ast.ExpressionStatement) e
 	return es.Expression.Accept(cg)
 }
 
-func (cg *CodeGenerator) VisitIndexExpression(ie *ast.IndexExpression) error {
-	// Minimal stub: generate code for the left, ignore the index for now.
-	if err := ie.Left.Accept(cg); err != nil {
-		return err
-	}
-	// We are not producing anything real, so just clear or reuse lastValue
-	cg.lastValue = nil
-	return nil
-}
-
 func (cg *CodeGenerator) VisitIfStatement(is *ast.IfStatement) error {
 	// Evaluate condition
 	if err := is.Condition.Accept(cg); err != nil {
