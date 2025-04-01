@@ -122,14 +122,13 @@ func (p *Parser) parseParenthesisExpression() ast.ExpressionNode {
 	}
 
 	if isPotentialParamList && paramParseEndedAtRightParen && p.peekTokenIs(TokenTypeLambdaArrow) {
-		p.nextToken() // consume ')'
 		lambdaArrowToken := p.peekToken
 		p.nextToken() // consume '->'
 
 		lambda := &ast.LambdaExpression{Token: lambdaArrowToken}
 		lambda.Parameters = params
 
-		if p.currentTokenIs(TokenTypeLeftBrace) {
+		if p.expectPeek(TokenTypeLeftBrace) {
 			bodyNode := p.parseBlockStatement()
 			if bodyNode == nil {
 				return nil
