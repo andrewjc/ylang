@@ -5,7 +5,7 @@ import "compiler/lexer"
 type MemberAccessExpression struct {
 	Token  lexer.LangToken // The '.' token
 	Left   ExpressionNode  // The expression on the left of the dot
-	Member string          // The member being accessed
+	Member *Identifier     // The member being accessed
 }
 
 func (m *MemberAccessExpression) TokenLiteral() string {
@@ -17,6 +17,6 @@ func (m *MemberAccessExpression) expressionNode() {
 	panic("implement me")
 }
 
-func (ie *MemberAccessExpression) String() string {
-	return "(" + ie.Left.String() + "." + ie.Member + ")"
+func (mae *MemberAccessExpression) String() string {
+	return "(" + mae.Left.String() + "." + mae.Member.String() + ")"
 }
