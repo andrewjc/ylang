@@ -85,7 +85,7 @@ func (cg *CodeGenerator) VisitMemberAccessExpression(mae *ast.MemberAccessExpres
 	// TODO needs proper mapping from AST node to LLVM struct layout.
 	// hardcode for Array for now: 0=length, 1=data
 	if structType.Name() == "Array" { // Use Name() which we set
-		switch fieldName {
+		switch fieldName.Value {
 		case "length":
 			fieldIndex = 0
 		case "data":
@@ -103,7 +103,7 @@ func (cg *CodeGenerator) VisitMemberAccessExpression(mae *ast.MemberAccessExpres
 		constant.NewInt(types.I32, 0),                 // Index for the struct
 		constant.NewInt(types.I32, int64(fieldIndex)), // Index for the field
 	)
-	memberAddr.SetName(fieldName + "_addr")
+	memberAddr.SetName(fieldName.Value + "_addr")
 
 	// 4. Handle LHS vs RHS context
 	if isLHSOuter { // If the *overall* expression is LHS (e.g., self.length = ...)
@@ -111,7 +111,7 @@ func (cg *CodeGenerator) VisitMemberAccessExpression(mae *ast.MemberAccessExpres
 		fmt.Printf("[DEBUG] MemberAccess '%s' (LHS): GEP -> %s\n", fieldName, memberAddr.Ident())
 	} else { // If RHS (e.g., let x = self.length)
 		loadedVal := cg.Block.NewLoad(structType.Fields[fieldIndex], memberAddr)
-		loadedVal.SetName(fieldName + "_val")
+		loadedVal.SetName(fieldName.Value + "_val")
 		cg.lastValue = loadedVal // Return the loaded value
 		fmt.Printf("[DEBUG] MemberAccess '%s' (RHS): GEP -> %s, Load -> %s\n", fieldName, memberAddr.Ident(), loadedVal.Ident())
 	}
