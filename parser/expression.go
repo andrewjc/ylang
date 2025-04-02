@@ -7,6 +7,11 @@ import (
 )
 
 func (p *Parser) parseExpression(precedence int) ast.ExpressionNode {
+	if p.currentTokenIs(TokenTypeEOF) {
+		p.errors = append(p.errors, fmt.Sprintf("Unexpected EOF while parsing expression at line %d", p.currentToken.Line))
+		return nil
+	}
+
 	prefix := p.prefixParseFns[p.currentToken.Type]
 	if prefix == nil {
 		p.noPrefixParseFnError(p.currentToken.Type)
@@ -236,6 +241,22 @@ func (p *Parser) parseDotOperator(left ast.ExpressionNode) ast.ExpressionNode {
 	}
 
 	return dotOperator
+}
+
+func (p *Parser) parseMemberAccessExpression(left ast.ExpressionNode) ast.ExpressionNode {
+	expr := &ast.MemberAccessExpression{
+		Token: p.currentToken,
+		Left:  left,
+	}
+
+	if !p.expectPeek(TokenTypeIdentifier) {
+		p.errors = append(p.errors, fmt.Sprintf("Expected identifier after '.', got %s at line %d", p.peekToken.Type, p.peekToken.Line))
+		return nil
+	}
+
+	expr.Member = &ast.Identifier{Token: p.currentToken, Value: p.currentToken.Literal}
+
+	return expr
 }
 
 func (p *Parser) noPrefixParseFnError(t TokenType) {

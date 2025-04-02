@@ -21,6 +21,7 @@ const (
 )
 
 var precedences = map[TokenType]int{
+	TokenTypeAssignment:      ASSIGN,
 	TokenTypeEqual:           EQUALS,
 	TokenTypeLessThan:        LESSGREATER,
 	TokenTypeGreaterThan:     LESSGREATER,
@@ -30,11 +31,11 @@ var precedences = map[TokenType]int{
 	TokenTypeDivide:          PRODUCT,
 	TokenTypeLeftParenthesis: CALL,
 	TokenTypeLeftBracket:     INDEX,
-	TokenTypeDot:             INDEX,
-	TokenTypeQuestionMark:    TERNARY,
-	TokenTypeLambdaArrow:     TERNARY,
-	TokenTypeIf:              TERNARY,
-	TokenTypeAssignment:      ASSIGN,
+	TokenTypeDot:             CALL,
+
+	TokenTypeQuestionMark: TERNARY,
+	TokenTypeLambdaArrow:  TERNARY,
+	TokenTypeIf:           TERNARY,
 }
 
 var DEFAULT_LOGGING_LEAD_LINES = 10
@@ -85,13 +86,16 @@ func NewParser(lexer *Lexer) *Parser {
 	p.registerInfix(TokenTypeEqual, p.parseInfixExpression)
 	p.registerInfix(TokenTypeLessThan, p.parseInfixExpression)
 	p.registerInfix(TokenTypeGreaterThan, p.parseInfixExpression)
+
+	p.registerInfix(TokenTypeDot, p.parseMemberAccessExpression)
+
 	p.registerInfix(TokenTypeLeftParenthesis, p.parseCallExpression)
 	p.registerInfix(TokenTypeLeftBracket, p.parseIndexExpression)
-	p.registerInfix(TokenTypeDot, p.parseDotOperator)
+	p.registerInfix(TokenTypeAssignment, p.parseAssignmentExpression)
+
 	p.registerInfix(TokenTypeQuestionMark, p.parseTraditionalTernaryExpression)
 	p.registerInfix(TokenTypeLambdaArrow, p.parseLambdaStyleTernaryExpression)
 	p.registerInfix(TokenTypeIf, p.parseInlineIfElseTernaryExpression)
-	p.registerInfix(TokenTypeAssignment, p.parseAssignmentExpression)
 
 	// Read two tokens, so currentToken and peekToken are both set
 	p.nextToken()
