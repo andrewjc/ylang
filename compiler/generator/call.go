@@ -34,74 +34,96 @@ func (cg *CodeGenerator) evaluateArguments(argNodes []ast.ExpressionNode) ([]val
 }
 
 func (cg *CodeGenerator) VisitCallExpression(ce *ast.CallExpression) error {
-	if dotOp, isDotOp := ce.Function.(*ast.DotOperator); isDotOp {
-		isLHS := cg.inAssignmentLHS
-		cg.inAssignmentLHS = true
-		err := dotOp.Left.Accept(cg)
-		cg.inAssignmentLHS = isLHS
+	args, err := cg.evaluateArguments(ce.Arguments)
+	if err != nil {
+		funcNameStr := "unknown_function"
+		if ce.Function != nil {
+			funcNameStr = ce.Function.String()
+		}
+		return fmt.Errorf("error evaluating arguments for call to '%s': %w", funcNameStr, err)
+	}
+
+	if memberAccessExpr, isMemberAccess := ce.Function.(*ast.MemberAccessExpression); isMemberAccess {
+		fmt.Printf("[DEBUG] Detected method call: %s\n", memberAccessExpr.String())
+		err := memberAccessExpr.Left.Accept(cg)
 		if err != nil {
-			return fmt.Errorf("error evaluating method call receiver '%s': %w", dotOp.Left.String(), err)
+			return fmt.Errorf("error evaluating receiver for method call '%s': %w", memberAccessExpr.Member.Value, err)
 		}
 		objReceiver := cg.lastValue
 
-		args, err := cg.evaluateArguments(ce.Arguments)
-		if err != nil {
-			return fmt.Errorf("error evaluating arguments for method call '%s': %w", dotOp.Right.Value, err)
+		if objReceiver == nil {
+			return fmt.Errorf("method call receiver '%s' evaluated to nil", memberAccessExpr.Left.String())
 		}
 
-		methodName := dotOp.Right.Value
+		methodName := memberAccessExpr.Member.Value
 
 		return cg.handleMethodCall(objReceiver, methodName, args)
-	}
 
-	if err := ce.Function.Accept(cg); err != nil {
-		return err
-	}
-	fnVal := cg.lastValue
-
-	args, err := cg.evaluateArguments(ce.Arguments)
-	if err != nil {
-		funcNameStr := ce.Function.String()
-		return fmt.Errorf("error evaluating arguments for function call '%s': %w", funcNameStr, err)
-	}
-
-	var callableFn value.Value
-	var fnSig *types.FuncType
-
-	switch fn := fnVal.(type) {
-	case *ir.Func:
-		callableFn = fn
-		fnSig = fn.Sig
-	case *ir.InstAlloca:
-		elemType := fn.ElemType
-		ptrType, isPtr := elemType.(*types.PointerType)
-		if !isPtr {
-			return fmt.Errorf("cannot call variable '%s', it does not store a pointer", fn.Name())
-		}
-		sig, isFunc := ptrType.ElemType.(*types.FuncType)
-		if !isFunc {
-			return fmt.Errorf("cannot call variable '%s', it does not store a function pointer", fn.Name())
-		}
-		loadedFnPtr := cg.Block.NewLoad(elemType, fn)
-		callableFn = loadedFnPtr
-		fnSig = sig
-		fmt.Printf("[DEBUG] Loaded function pointer for call: %s from %s\n", loadedFnPtr.Ident(), fn.Ident())
-	default:
-		return fmt.Errorf("cannot call value of type %T", fnVal)
-	}
-
-	if len(fnSig.Params) != len(args) {
-		return fmt.Errorf("argument count mismatch for call to '%s': expected %d, got %d", callableFn.String(), len(fnSig.Params), len(args))
-	}
-
-	call := cg.Block.NewCall(callableFn, args...)
-	if !fnSig.RetType.Equal(types.Void) {
-		cg.lastValue = call
 	} else {
-		cg.lastValue = nil
-	}
+		fmt.Printf("[DEBUG] Detected regular function call: %s\n", ce.Function.String())
 
-	return nil
+		if err := ce.Function.Accept(cg); err != nil {
+			return fmt.Errorf("error evaluating function expression '%s': %w", ce.Function.String(), err)
+		}
+		fnVal := cg.lastValue // This should be an *ir.Func or a function pointer
+
+		if fnVal == nil {
+			return fmt.Errorf("function expression '%s' evaluated to nil", ce.Function.String())
+		}
+
+		var callableFn value.Value
+		var fnSig *types.FuncType
+
+		switch fn := fnVal.(type) {
+		case *ir.Func:
+			callableFn = fn
+			fnSig = fn.Sig
+			fmt.Printf("[DEBUG] Calling direct function: %s\n", fn.Name())
+		case *ir.InstAlloca:
+			elemType := fn.ElemType
+			ptrType, isPtr := elemType.(*types.PointerType)
+			if !isPtr {
+				return fmt.Errorf("cannot call variable '%s', it does not store a pointer (type: %s)", fn.Name(), elemType)
+			}
+			sig, isFunc := ptrType.ElemType.(*types.FuncType)
+			if !isFunc {
+				return fmt.Errorf("cannot call variable '%s', it does not store a function pointer (stores pointer to: %s)", fn.Name(), ptrType.ElemType)
+			}
+			loadedFnPtr := cg.Block.NewLoad(elemType, fn) // Load the function pointer (e.g., i32 (...)**)
+			callableFn = loadedFnPtr
+			fnSig = sig
+			fmt.Printf("[DEBUG] Calling loaded function pointer: %s from %s\n", loadedFnPtr.Ident(), fn.Ident())
+		case value.Value:
+			ptrType, isPtr := fn.Type().(*types.PointerType)
+			if !isPtr {
+				return fmt.Errorf("cannot call value of type %T, not a function or pointer", fnVal)
+			}
+			sig, isFunc := ptrType.ElemType.(*types.FuncType)
+			if !isFunc {
+				return fmt.Errorf("cannot call pointer value of type %s, does not point to a function", fn.Type())
+			}
+			callableFn = fn
+			fnSig = sig
+			fmt.Printf("[DEBUG] Calling function pointer value: %s\n", callableFn.Ident())
+		default:
+			return fmt.Errorf("cannot call value of type %T", fnVal)
+		}
+
+		if len(fnSig.Params) != len(args) {
+			return fmt.Errorf("argument count mismatch for call to '%s': expected %d, got %d", callableFn.String(), len(fnSig.Params), len(args))
+		}
+
+		// TODO: Type check arguments against fnSig.Params
+
+		call := cg.Block.NewCall(callableFn, args...)
+		if !fnSig.RetType.Equal(types.Void) {
+			cg.lastValue = call
+		} else {
+			cg.lastValue = nil
+		}
+
+		return nil
+	}
 }
 
 func (cg *CodeGenerator) handleMethodCall(objReceiver value.Value, methodName string, args []value.Value) error {

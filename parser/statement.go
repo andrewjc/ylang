@@ -19,7 +19,7 @@ func (p *Parser) parseStatement() ast.Statement {
 			// Return is a statement, but its also an expression
 			return stmt
 		}
-		p.errors = append(p.errors, fmt.Sprintf("Internal Error: *ast.ReturnStatement does not implement ast.Statement near line %d", node.TokenLiteral()))
+		p.errors = append(p.errors, fmt.Sprintf("Internal Error: *ast.ReturnStatement does not implement ast.Statement, got %s", node.TokenLiteral()))
 		return nil
 	case TokenTypeImport:
 		return p.parseImportStatement()
@@ -31,7 +31,7 @@ func (p *Parser) parseStatement() ast.Statement {
 		if stmt, ok := node.(ast.Statement); ok {
 			return stmt
 		}
-		p.errors = append(p.errors, fmt.Sprintf("Internal Error: *ast.IfStatement does not implement ast.Statement near line %d", node.TokenLiteral()))
+		p.errors = append(p.errors, fmt.Sprintf("Internal Error: *ast.IfStatement does not implement ast.Statement, got %s", node.TokenLiteral()))
 		return nil
 	case TokenTypeLeftBrace:
 		node := p.parseBlockStatement()
