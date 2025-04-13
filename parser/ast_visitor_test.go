@@ -1,8 +1,8 @@
-package ast
+package parser
 
 import (
+	"compiler/ast"
 	"compiler/lexer"
-	"compiler/parser"
 	"fmt"
 	"reflect"
 	"strings"
@@ -15,12 +15,12 @@ type recordingVisitor struct {
 	errors       []error
 }
 
-func (v *recordingVisitor) recordVisit(node Node) {
+func (v *recordingVisitor) recordVisit(node ast.Node) {
 	nodeType := reflect.TypeOf(node).String()
 	v.visitedNodes = append(v.visitedNodes, fmt.Sprintf("%s: %s", nodeType, node.String()))
 }
 
-func (v *recordingVisitor) VisitProgram(p *Program) error {
+func (v *recordingVisitor) VisitProgram(p *ast.Program) error {
 	v.recordVisit(p)
 	// Manually traverse children because Accept calls Visit, not the other way around
 	for _, stmt := range p.ImportStatements {
@@ -42,7 +42,7 @@ func (v *recordingVisitor) VisitProgram(p *Program) error {
 	return nil
 }
 
-func (v *recordingVisitor) VisitFunctionDefinition(fn *FunctionDefinition) error {
+func (v *recordingVisitor) VisitFunctionDefinition(fn *ast.FunctionDefinition) error {
 	v.recordVisit(fn)
 	// Traverse children
 	if fn.Name != nil {
@@ -68,7 +68,7 @@ func (v *recordingVisitor) VisitFunctionDefinition(fn *FunctionDefinition) error
 	return nil
 }
 
-func (v *recordingVisitor) VisitLetStatement(ls *LetStatement) error {
+func (v *recordingVisitor) VisitLetStatement(ls *ast.LetStatement) error {
 	v.recordVisit(ls)
 	if ls.Name != nil {
 		if err := ls.Name.Accept(v); err != nil {
@@ -83,7 +83,7 @@ func (v *recordingVisitor) VisitLetStatement(ls *LetStatement) error {
 	return nil
 }
 
-func (v *recordingVisitor) VisitReturnStatement(rs *ReturnStatement) error {
+func (v *recordingVisitor) VisitReturnStatement(rs *ast.ReturnStatement) error {
 	v.recordVisit(rs)
 	if rs.ReturnValue != nil {
 		if err := rs.ReturnValue.Accept(v); err != nil {
@@ -93,7 +93,7 @@ func (v *recordingVisitor) VisitReturnStatement(rs *ReturnStatement) error {
 	return nil
 }
 
-func (v *recordingVisitor) VisitExpressionStatement(es *ExpressionStatement) error {
+func (v *recordingVisitor) VisitExpressionStatement(es *ast.ExpressionStatement) error {
 	v.recordVisit(es)
 	if es.Expression != nil {
 		if err := es.Expression.Accept(v); err != nil {
@@ -103,22 +103,22 @@ func (v *recordingVisitor) VisitExpressionStatement(es *ExpressionStatement) err
 	return nil
 }
 
-func (v *recordingVisitor) VisitNumberLiteral(nl *NumberLiteral) error {
+func (v *recordingVisitor) VisitNumberLiteral(nl *ast.NumberLiteral) error {
 	v.recordVisit(nl)
 	return nil
 }
 
-func (v *recordingVisitor) VisitStringLiteral(sl *StringLiteral) error {
+func (v *recordingVisitor) VisitStringLiteral(sl *ast.StringLiteral) error {
 	v.recordVisit(sl)
 	return nil
 }
 
-func (v *recordingVisitor) VisitIdentifier(id *Identifier) error {
+func (v *recordingVisitor) VisitIdentifier(id *ast.Identifier) error {
 	v.recordVisit(id)
 	return nil
 }
 
-func (v *recordingVisitor) VisitInfixExpression(ie *InfixExpression) error {
+func (v *recordingVisitor) VisitInfixExpression(ie *ast.InfixExpression) error {
 	v.recordVisit(ie)
 	if ie.Left != nil {
 		if err := ie.Left.Accept(v); err != nil {
@@ -133,7 +133,7 @@ func (v *recordingVisitor) VisitInfixExpression(ie *InfixExpression) error {
 	return nil
 }
 
-func (v *recordingVisitor) VisitCallExpression(ce *CallExpression) error {
+func (v *recordingVisitor) VisitCallExpression(ce *ast.CallExpression) error {
 	v.recordVisit(ce)
 	if ce.Function != nil {
 		if err := ce.Function.Accept(v); err != nil {
@@ -148,7 +148,7 @@ func (v *recordingVisitor) VisitCallExpression(ce *CallExpression) error {
 	return nil
 }
 
-func (v *recordingVisitor) VisitArrayLiteral(al *ArrayLiteral) error {
+func (v *recordingVisitor) VisitArrayLiteral(al *ast.ArrayLiteral) error {
 	v.recordVisit(al)
 	for _, el := range al.Elements {
 		if err := el.Accept(v); err != nil {
@@ -158,7 +158,7 @@ func (v *recordingVisitor) VisitArrayLiteral(al *ArrayLiteral) error {
 	return nil
 }
 
-func (v *recordingVisitor) VisitLambdaExpression(le *LambdaExpression) error {
+func (v *recordingVisitor) VisitLambdaExpression(le *ast.LambdaExpression) error {
 	v.recordVisit(le)
 	for _, p := range le.Parameters {
 		if err := p.Accept(v); err != nil {
@@ -173,7 +173,7 @@ func (v *recordingVisitor) VisitLambdaExpression(le *LambdaExpression) error {
 	return nil
 }
 
-func (v *recordingVisitor) VisitMemberAccessExpression(mae *MemberAccessExpression) error {
+func (v *recordingVisitor) VisitMemberAccessExpression(mae *ast.MemberAccessExpression) error {
 	v.recordVisit(mae)
 	if mae.Left != nil {
 		if err := mae.Left.Accept(v); err != nil {
@@ -188,7 +188,7 @@ func (v *recordingVisitor) VisitMemberAccessExpression(mae *MemberAccessExpressi
 	return nil
 }
 
-func (v *recordingVisitor) VisitAssignmentExpression(as *AssignmentExpression) error {
+func (v *recordingVisitor) VisitAssignmentExpression(as *ast.AssignmentExpression) error {
 	v.recordVisit(as)
 	if as.Left != nil {
 		if err := as.Left.Accept(v); err != nil {
@@ -203,7 +203,7 @@ func (v *recordingVisitor) VisitAssignmentExpression(as *AssignmentExpression) e
 	return nil
 }
 
-func (v *recordingVisitor) VisitBlockStatement(bs *BlockStatement) error {
+func (v *recordingVisitor) VisitBlockStatement(bs *ast.BlockStatement) error {
 	v.recordVisit(bs)
 	for _, stmt := range bs.Statements {
 		if err := stmt.Accept(v); err != nil {
@@ -213,7 +213,7 @@ func (v *recordingVisitor) VisitBlockStatement(bs *BlockStatement) error {
 	return nil
 }
 
-func (v *recordingVisitor) VisitIndexExpression(ie *IndexExpression) error {
+func (v *recordingVisitor) VisitIndexExpression(ie *ast.IndexExpression) error {
 	v.recordVisit(ie)
 	if ie.Left != nil {
 		if err := ie.Left.Accept(v); err != nil {
@@ -228,7 +228,7 @@ func (v *recordingVisitor) VisitIndexExpression(ie *IndexExpression) error {
 	return nil
 }
 
-func (v *recordingVisitor) VisitVariableDeclaration(vd *VariableDeclaration) error {
+func (v *recordingVisitor) VisitVariableDeclaration(vd *ast.VariableDeclaration) error {
 	v.recordVisit(vd)
 	if vd.Name != nil {
 		if err := vd.Name.Accept(v); err != nil {
@@ -248,7 +248,7 @@ func (v *recordingVisitor) VisitVariableDeclaration(vd *VariableDeclaration) err
 	return nil // Should not happen via Accept, but needed for interface
 }
 
-func (v *recordingVisitor) VisitIfStatement(is *IfStatement) error {
+func (v *recordingVisitor) VisitIfStatement(is *ast.IfStatement) error {
 	v.recordVisit(is)
 	if is.Condition != nil {
 		if err := is.Condition.Accept(v); err != nil {
@@ -268,7 +268,7 @@ func (v *recordingVisitor) VisitIfStatement(is *IfStatement) error {
 	return nil
 }
 
-func (v *recordingVisitor) VisitTraditionalTernaryExpression(te *TraditionalTernaryExpression) error {
+func (v *recordingVisitor) VisitTraditionalTernaryExpression(te *ast.TraditionalTernaryExpression) error {
 	v.recordVisit(te)
 	if te.Condition != nil {
 		if err := te.Condition.Accept(v); err != nil {
@@ -288,7 +288,7 @@ func (v *recordingVisitor) VisitTraditionalTernaryExpression(te *TraditionalTern
 	return nil
 }
 
-func (v *recordingVisitor) VisitLambdaStyleTernaryExpression(aste *LambdaStyleTernaryExpression) error {
+func (v *recordingVisitor) VisitLambdaStyleTernaryExpression(aste *ast.LambdaStyleTernaryExpression) error {
 	v.recordVisit(aste)
 	if aste.Condition != nil {
 		if err := aste.Condition.Accept(v); err != nil {
@@ -308,7 +308,7 @@ func (v *recordingVisitor) VisitLambdaStyleTernaryExpression(aste *LambdaStyleTe
 	return nil
 }
 
-func (v *recordingVisitor) VisitInlineIfElseTernaryExpression(iite *InlineIfElseTernaryExpression) error {
+func (v *recordingVisitor) VisitInlineIfElseTernaryExpression(iite *ast.InlineIfElseTernaryExpression) error {
 	v.recordVisit(iite)
 	if iite.Condition != nil {
 		if err := iite.Condition.Accept(v); err != nil {
@@ -328,7 +328,7 @@ func (v *recordingVisitor) VisitInlineIfElseTernaryExpression(iite *InlineIfElse
 	return nil
 }
 
-func (v *recordingVisitor) VisitDotOperator(do *DotOperator) error {
+func (v *recordingVisitor) VisitDotOperator(do *ast.DotOperator) error {
 	v.recordVisit(do)
 	if do.Left != nil {
 		if err := do.Left.Accept(v); err != nil {
@@ -343,7 +343,7 @@ func (v *recordingVisitor) VisitDotOperator(do *DotOperator) error {
 	return nil
 }
 
-func (v *recordingVisitor) VisitSyscallExpression(se *SyscallExpression) error {
+func (v *recordingVisitor) VisitSyscallExpression(se *ast.SyscallExpression) error {
 	v.recordVisit(se)
 	if se.Num != nil {
 		if err := se.Num.Accept(v); err != nil {
@@ -358,11 +358,11 @@ func (v *recordingVisitor) VisitSyscallExpression(se *SyscallExpression) error {
 	return nil
 }
 
-func (v *recordingVisitor) VisitImportStatement(is *ImportStatement) error {
+func (v *recordingVisitor) VisitImportStatement(is *ast.ImportStatement) error {
 	v.recordVisit(is)
 	return nil
 }
-func (v *recordingVisitor) VisitAssemblyExpression(ae *AssemblyExpression) error {
+func (v *recordingVisitor) VisitAssemblyExpression(ae *ast.AssemblyExpression) error {
 	v.recordVisit(ae)
 	if ae.Code != nil {
 		if err := ae.Code.Accept(v); err != nil {
@@ -403,7 +403,7 @@ func TestVisitorAcceptDispatchUnit(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Lexer creation failed: %v", err)
 	}
-	p := parser.NewParser(l)
+	p := NewParser(l)
 	program := p.ParseProgram()
 	// Don't fail on parser errors here, as we want to test Accept on partially valid ASTs if possible.
 	// checkParserErrorsAST(t, p)

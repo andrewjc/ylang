@@ -8,6 +8,7 @@ import (
 type Node interface {
 	TokenLiteral() string
 	String() string
+	Accept(Visitor) error
 }
 
 type Identifier struct {

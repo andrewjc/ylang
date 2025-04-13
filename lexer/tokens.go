@@ -5,8 +5,9 @@ type TokenType string
 type LangToken struct {
 	Type    TokenType // LangToken type
 	Literal string    // LangToken literal
-	Line    int
-	Pos     int
+	Line    int       // 0-based line number where the token starts
+	Pos     int       // 1-based column number where the token starts
+	Length  int       // Length of the token literal in runes
 }
 
 const (

@@ -1,14 +1,14 @@
-package ast
+package parser
 
 import (
+	"compiler/ast"
 	"compiler/lexer"
-	"compiler/parser"
 	"reflect"
 	"testing"
 )
 
 // checkParserErrorsAST is a helper specifically for AST tests
-func checkParserErrorsAST(t *testing.T, p *parser.Parser) {
+func checkParserErrorsAST(t *testing.T, p *Parser) {
 	t.Helper()
 	errors := p.Errors()
 	if len(errors) == 0 {
@@ -25,17 +25,17 @@ func checkParserErrorsAST(t *testing.T, p *parser.Parser) {
 func TestASTNodeTypesUnit(t *testing.T) {
 	tests := []struct {
 		name             string
-		input            string              // Input snippet resulting in the target node
-		expectedNodeType reflect.Type        // Expected Go type of the AST node
-		nodeExtractor    func(*Program) Node // Function to extract the target node
+		input            string                      // Input snippet resulting in the target node
+		expectedNodeType reflect.Type                // Expected Go type of the AST node
+		nodeExtractor    func(*ast.Program) ast.Node // Function to extract the target node
 	}{
 		{
 			name:             "Let Statement",
 			input:            `main() -> { let x = 5; }`,
-			expectedNodeType: reflect.TypeOf(&LetStatement{}),
-			nodeExtractor: func(prog *Program) Node {
+			expectedNodeType: reflect.TypeOf(&ast.LetStatement{}),
+			nodeExtractor: func(prog *ast.Program) ast.Node {
 				if main := prog.MainFunction; main != nil {
-					if body, ok := main.Body.(*BlockStatement); ok && len(body.Statements) > 0 {
+					if body, ok := main.Body.(*ast.BlockStatement); ok && len(body.Statements) > 0 {
 						return body.Statements[0] // Should be the LetStatement
 					}
 				}
@@ -45,10 +45,10 @@ func TestASTNodeTypesUnit(t *testing.T) {
 		{
 			name:             "Return Statement",
 			input:            `main() -> { return "hello"; }`,
-			expectedNodeType: reflect.TypeOf(&ReturnStatement{}),
-			nodeExtractor: func(prog *Program) Node {
+			expectedNodeType: reflect.TypeOf(&ast.ReturnStatement{}),
+			nodeExtractor: func(prog *ast.Program) ast.Node {
 				if main := prog.MainFunction; main != nil {
-					if body, ok := main.Body.(*BlockStatement); ok && len(body.Statements) > 0 {
+					if body, ok := main.Body.(*ast.BlockStatement); ok && len(body.Statements) > 0 {
 						return body.Statements[0] // Should be the ReturnStatement
 					}
 				}
@@ -58,10 +58,10 @@ func TestASTNodeTypesUnit(t *testing.T) {
 		{
 			name:             "Expression Statement (Infix)",
 			input:            `main() -> { x + y; }`,
-			expectedNodeType: reflect.TypeOf(&ExpressionStatement{}), // The statement itself
-			nodeExtractor: func(prog *Program) Node {
+			expectedNodeType: reflect.TypeOf(&ast.ExpressionStatement{}), // The statement itself
+			nodeExtractor: func(prog *ast.Program) ast.Node {
 				if main := prog.MainFunction; main != nil {
-					if body, ok := main.Body.(*BlockStatement); ok && len(body.Statements) > 0 {
+					if body, ok := main.Body.(*ast.BlockStatement); ok && len(body.Statements) > 0 {
 						return body.Statements[0] // The ExpressionStatement
 					}
 				}
@@ -71,11 +71,11 @@ func TestASTNodeTypesUnit(t *testing.T) {
 		{
 			name:             "Infix Expression",
 			input:            `main() -> { a * b; }`,
-			expectedNodeType: reflect.TypeOf(&InfixExpression{}), // The expression inside the statement
-			nodeExtractor: func(prog *Program) Node {
+			expectedNodeType: reflect.TypeOf(&ast.InfixExpression{}), // The expression inside the statement
+			nodeExtractor: func(prog *ast.Program) ast.Node {
 				if main := prog.MainFunction; main != nil {
-					if body, ok := main.Body.(*BlockStatement); ok && len(body.Statements) > 0 {
-						if exprStmt, ok := body.Statements[0].(*ExpressionStatement); ok {
+					if body, ok := main.Body.(*ast.BlockStatement); ok && len(body.Statements) > 0 {
+						if exprStmt, ok := body.Statements[0].(*ast.ExpressionStatement); ok {
 							return exprStmt.Expression // The InfixExpression
 						}
 					}
@@ -86,11 +86,11 @@ func TestASTNodeTypesUnit(t *testing.T) {
 		{
 			name:             "Identifier",
 			input:            `main() -> { myVar; }`,
-			expectedNodeType: reflect.TypeOf(&Identifier{}), // The identifier inside the expr stmt
-			nodeExtractor: func(prog *Program) Node {
+			expectedNodeType: reflect.TypeOf(&ast.Identifier{}), // The identifier inside the expr stmt
+			nodeExtractor: func(prog *ast.Program) ast.Node {
 				if main := prog.MainFunction; main != nil {
-					if body, ok := main.Body.(*BlockStatement); ok && len(body.Statements) > 0 {
-						if exprStmt, ok := body.Statements[0].(*ExpressionStatement); ok {
+					if body, ok := main.Body.(*ast.BlockStatement); ok && len(body.Statements) > 0 {
+						if exprStmt, ok := body.Statements[0].(*ast.ExpressionStatement); ok {
 							return exprStmt.Expression // The Identifier
 						}
 					}
@@ -101,11 +101,11 @@ func TestASTNodeTypesUnit(t *testing.T) {
 		{
 			name:             "Number Literal",
 			input:            `main() -> { 123; }`,
-			expectedNodeType: reflect.TypeOf(&NumberLiteral{}),
-			nodeExtractor: func(prog *Program) Node {
+			expectedNodeType: reflect.TypeOf(&ast.NumberLiteral{}),
+			nodeExtractor: func(prog *ast.Program) ast.Node {
 				if main := prog.MainFunction; main != nil {
-					if body, ok := main.Body.(*BlockStatement); ok && len(body.Statements) > 0 {
-						if exprStmt, ok := body.Statements[0].(*ExpressionStatement); ok {
+					if body, ok := main.Body.(*ast.BlockStatement); ok && len(body.Statements) > 0 {
+						if exprStmt, ok := body.Statements[0].(*ast.ExpressionStatement); ok {
 							return exprStmt.Expression // The NumberLiteral
 						}
 					}
@@ -116,11 +116,11 @@ func TestASTNodeTypesUnit(t *testing.T) {
 		{
 			name:             "String Literal",
 			input:            `main() -> { "abc"; }`,
-			expectedNodeType: reflect.TypeOf(&StringLiteral{}),
-			nodeExtractor: func(prog *Program) Node {
+			expectedNodeType: reflect.TypeOf(&ast.StringLiteral{}),
+			nodeExtractor: func(prog *ast.Program) ast.Node {
 				if main := prog.MainFunction; main != nil {
-					if body, ok := main.Body.(*BlockStatement); ok && len(body.Statements) > 0 {
-						if exprStmt, ok := body.Statements[0].(*ExpressionStatement); ok {
+					if body, ok := main.Body.(*ast.BlockStatement); ok && len(body.Statements) > 0 {
+						if exprStmt, ok := body.Statements[0].(*ast.ExpressionStatement); ok {
 							return exprStmt.Expression // The StringLiteral
 						}
 					}
@@ -131,11 +131,11 @@ func TestASTNodeTypesUnit(t *testing.T) {
 		{
 			name:             "Array Literal",
 			input:            `main() -> { [1, 2]; }`,
-			expectedNodeType: reflect.TypeOf(&ArrayLiteral{}),
-			nodeExtractor: func(prog *Program) Node {
+			expectedNodeType: reflect.TypeOf(&ast.ArrayLiteral{}),
+			nodeExtractor: func(prog *ast.Program) ast.Node {
 				if main := prog.MainFunction; main != nil {
-					if body, ok := main.Body.(*BlockStatement); ok && len(body.Statements) > 0 {
-						if exprStmt, ok := body.Statements[0].(*ExpressionStatement); ok {
+					if body, ok := main.Body.(*ast.BlockStatement); ok && len(body.Statements) > 0 {
+						if exprStmt, ok := body.Statements[0].(*ast.ExpressionStatement); ok {
 							return exprStmt.Expression // The ArrayLiteral
 						}
 					}
@@ -146,11 +146,11 @@ func TestASTNodeTypesUnit(t *testing.T) {
 		{
 			name:             "Index Expression",
 			input:            `main() -> { arr[0]; }`,
-			expectedNodeType: reflect.TypeOf(&IndexExpression{}),
-			nodeExtractor: func(prog *Program) Node {
+			expectedNodeType: reflect.TypeOf(&ast.IndexExpression{}),
+			nodeExtractor: func(prog *ast.Program) ast.Node {
 				if main := prog.MainFunction; main != nil {
-					if body, ok := main.Body.(*BlockStatement); ok && len(body.Statements) > 0 {
-						if exprStmt, ok := body.Statements[0].(*ExpressionStatement); ok {
+					if body, ok := main.Body.(*ast.BlockStatement); ok && len(body.Statements) > 0 {
+						if exprStmt, ok := body.Statements[0].(*ast.ExpressionStatement); ok {
 							return exprStmt.Expression // The IndexExpression
 						}
 					}
@@ -161,11 +161,11 @@ func TestASTNodeTypesUnit(t *testing.T) {
 		{
 			name:             "Lambda Expression",
 			input:            `main() -> { (x) -> x * x; }`,
-			expectedNodeType: reflect.TypeOf(&LambdaExpression{}),
-			nodeExtractor: func(prog *Program) Node {
+			expectedNodeType: reflect.TypeOf(&ast.LambdaExpression{}),
+			nodeExtractor: func(prog *ast.Program) ast.Node {
 				if main := prog.MainFunction; main != nil {
-					if body, ok := main.Body.(*BlockStatement); ok && len(body.Statements) > 0 {
-						if exprStmt, ok := body.Statements[0].(*ExpressionStatement); ok {
+					if body, ok := main.Body.(*ast.BlockStatement); ok && len(body.Statements) > 0 {
+						if exprStmt, ok := body.Statements[0].(*ast.ExpressionStatement); ok {
 							return exprStmt.Expression // The LambdaExpression
 						}
 					}
@@ -176,11 +176,11 @@ func TestASTNodeTypesUnit(t *testing.T) {
 		{
 			name:             "Call Expression",
 			input:            `main() -> { func(arg1); }`,
-			expectedNodeType: reflect.TypeOf(&CallExpression{}),
-			nodeExtractor: func(prog *Program) Node {
+			expectedNodeType: reflect.TypeOf(&ast.CallExpression{}),
+			nodeExtractor: func(prog *ast.Program) ast.Node {
 				if main := prog.MainFunction; main != nil {
-					if body, ok := main.Body.(*BlockStatement); ok && len(body.Statements) > 0 {
-						if exprStmt, ok := body.Statements[0].(*ExpressionStatement); ok {
+					if body, ok := main.Body.(*ast.BlockStatement); ok && len(body.Statements) > 0 {
+						if exprStmt, ok := body.Statements[0].(*ast.ExpressionStatement); ok {
 							return exprStmt.Expression // The CallExpression
 						}
 					}
@@ -191,11 +191,11 @@ func TestASTNodeTypesUnit(t *testing.T) {
 		{
 			name:             "Assignment Expression",
 			input:            `main() -> { a = 10; }`,
-			expectedNodeType: reflect.TypeOf(&AssignmentExpression{}),
-			nodeExtractor: func(prog *Program) Node {
+			expectedNodeType: reflect.TypeOf(&ast.AssignmentExpression{}),
+			nodeExtractor: func(prog *ast.Program) ast.Node {
 				if main := prog.MainFunction; main != nil {
-					if body, ok := main.Body.(*BlockStatement); ok && len(body.Statements) > 0 {
-						if exprStmt, ok := body.Statements[0].(*ExpressionStatement); ok {
+					if body, ok := main.Body.(*ast.BlockStatement); ok && len(body.Statements) > 0 {
+						if exprStmt, ok := body.Statements[0].(*ast.ExpressionStatement); ok {
 							return exprStmt.Expression // The AssignmentExpression
 						}
 					}
@@ -206,12 +206,12 @@ func TestASTNodeTypesUnit(t *testing.T) {
 		{
 			name:             "Block Statement",
 			input:            `main() -> { { let inner = 1; } }`,
-			expectedNodeType: reflect.TypeOf(&BlockStatement{}),
-			nodeExtractor: func(prog *Program) Node {
+			expectedNodeType: reflect.TypeOf(&ast.BlockStatement{}),
+			nodeExtractor: func(prog *ast.Program) ast.Node {
 				if main := prog.MainFunction; main != nil {
-					if body, ok := main.Body.(*BlockStatement); ok && len(body.Statements) > 0 {
+					if body, ok := main.Body.(*ast.BlockStatement); ok && len(body.Statements) > 0 {
 						// Assuming the inner block is wrapped in an ExprStmt
-						if exprStmt, ok := body.Statements[0].(*ExpressionStatement); ok {
+						if exprStmt, ok := body.Statements[0].(*ast.ExpressionStatement); ok {
 							return exprStmt.Expression // The inner BlockStatement
 						}
 						// Or maybe it's parsed directly if parseStatement handles '{'
@@ -224,12 +224,12 @@ func TestASTNodeTypesUnit(t *testing.T) {
 		{
 			name:             "If Statement",
 			input:            `main() -> { if (true) {} }`,
-			expectedNodeType: reflect.TypeOf(&IfStatement{}),
-			nodeExtractor: func(prog *Program) Node {
+			expectedNodeType: reflect.TypeOf(&ast.IfStatement{}),
+			nodeExtractor: func(prog *ast.Program) ast.Node {
 				if main := prog.MainFunction; main != nil {
-					if body, ok := main.Body.(*BlockStatement); ok && len(body.Statements) > 0 {
+					if body, ok := main.Body.(*ast.BlockStatement); ok && len(body.Statements) > 0 {
 						// Assuming If is wrapped in ExprStmt or returned directly by parseStatement
-						if exprStmt, ok := body.Statements[0].(*ExpressionStatement); ok {
+						if exprStmt, ok := body.Statements[0].(*ast.ExpressionStatement); ok {
 							return exprStmt.Expression
 						}
 						return body.Statements[0] // The IfStatement
@@ -242,8 +242,8 @@ func TestASTNodeTypesUnit(t *testing.T) {
 		{
 			name:             "Import Statement",
 			input:            `import "foo";`,
-			expectedNodeType: reflect.TypeOf(&ImportStatement{}),
-			nodeExtractor: func(prog *Program) Node {
+			expectedNodeType: reflect.TypeOf(&ast.ImportStatement{}),
+			nodeExtractor: func(prog *ast.Program) ast.Node {
 				if len(prog.ImportStatements) > 0 {
 					return prog.ImportStatements[0]
 				}
@@ -253,11 +253,11 @@ func TestASTNodeTypesUnit(t *testing.T) {
 		{
 			name:             "Member Access Expression",
 			input:            `main() -> { obj.field; }`,
-			expectedNodeType: reflect.TypeOf(&MemberAccessExpression{}), // Assuming this node type exists
-			nodeExtractor: func(prog *Program) Node {
+			expectedNodeType: reflect.TypeOf(&ast.MemberAccessExpression{}), // Assuming this node type exists
+			nodeExtractor: func(prog *ast.Program) ast.Node {
 				if main := prog.MainFunction; main != nil {
-					if body, ok := main.Body.(*BlockStatement); ok && len(body.Statements) > 0 {
-						if exprStmt, ok := body.Statements[0].(*ExpressionStatement); ok {
+					if body, ok := main.Body.(*ast.BlockStatement); ok && len(body.Statements) > 0 {
+						if exprStmt, ok := body.Statements[0].(*ast.ExpressionStatement); ok {
 							return exprStmt.Expression // The MemberAccessExpression
 						}
 					}
@@ -273,7 +273,7 @@ func TestASTNodeTypesUnit(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Lexer creation failed: %v", err)
 			}
-			p := parser.NewParser(l)
+			p := NewParser(l)
 			program := p.ParseProgram()
 			checkParserErrorsAST(t, p) // Use AST-specific error check helper
 
@@ -293,7 +293,7 @@ func TestASTNodeTypesUnit(t *testing.T) {
 			}
 
 			// Additional Check: Verify children association for InfixExpression
-			if infixExpr, ok := node.(*InfixExpression); ok {
+			if infixExpr, ok := node.(*ast.InfixExpression); ok {
 				if infixExpr.Left == nil {
 					t.Errorf("InfixExpression.Left is nil for input: %s", tt.input)
 				}

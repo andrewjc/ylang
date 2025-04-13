@@ -10,6 +10,10 @@ type Program struct {
 	ImportStatements  []*ImportStatement
 }
 
+func (p *Program) TokenLiteral() string {
+	panic("implement me")
+}
+
 func (p *Program) String() string {
 	var out strings.Builder
 	// Print main function if available
