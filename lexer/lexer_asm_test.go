@@ -32,26 +32,26 @@ func TestLexer_AssemblyTokenization(t *testing.T) {
 			name:  "asm call with args (lexing only)",
 			input: `asm("syscall", 1, fd, buf)`, // Lexer just tokenizes, parser handles args
 			expectedTokens: []LangToken{
-				{Type: TokenTypeIdentifier, Literal: "asm", Line: 0, Pos: 1},
-				{Type: TokenTypeLeftParenthesis, Literal: "(", Line: 0, Pos: 4},
-				{Type: TokenTypeString, Literal: "syscall", Line: 0, Pos: 5},
-				{Type: TokenTypeComma, Literal: ",", Line: 0, Pos: 14},
-				{Type: TokenTypeNumber, Literal: "1", Line: 0, Pos: 16},
-				{Type: TokenTypeComma, Literal: ",", Line: 0, Pos: 17},
-				{Type: TokenTypeIdentifier, Literal: "fd", Line: 0, Pos: 19},
-				{Type: TokenTypeComma, Literal: ",", Line: 0, Pos: 21},
-				{Type: TokenTypeIdentifier, Literal: "buf", Line: 0, Pos: 23},
-				{Type: TokenTypeRightParenthesis, Literal: ")", Line: 0, Pos: 26},
-				{Type: TokenTypeEOF, Literal: "", Line: 0, Pos: 27},
+				{Type: TokenTypeAssembly, Literal: "asm", Line: 0, Pos: 0, Length: 3},
+				{Type: TokenTypeLeftParenthesis, Literal: "(", Line: 0, Pos: 3, Length: 1},
+				{Type: TokenTypeString, Literal: "syscall", Line: 0, Pos: 4, Length: 7},
+				{Type: TokenTypeComma, Literal: ",", Line: 0, Pos: 13, Length: 1},
+				{Type: TokenTypeNumber, Literal: "1", Line: 0, Pos: 15, Length: 1},
+				{Type: TokenTypeComma, Literal: ",", Line: 0, Pos: 16, Length: 1},
+				{Type: TokenTypeIdentifier, Literal: "fd", Line: 0, Pos: 18, Length: 2},
+				{Type: TokenTypeComma, Literal: ",", Line: 0, Pos: 20, Length: 1},
+				{Type: TokenTypeIdentifier, Literal: "buf", Line: 0, Pos: 22, Length: 3},
+				{Type: TokenTypeRightParenthesis, Literal: ")", Line: 0, Pos: 25, Length: 1},
+				{Type: TokenTypeEOF, Literal: "", Line: 0, Pos: 25, Length: 0},
 			},
 			wantErr: false,
 		},
 		{
 			name:  "asm not as keyword (part of identifier)",
-			input: `assemblyVar = 1`,
+			input: `asm = 1`,
 			expectedTokens: []LangToken{
-				{Type: TokenTypeIdentifier, Literal: "assemblyVar", Line: 0, Pos: 1},
-				{Type: TokenTypeAssignment, Literal: "=", Line: 0, Pos: 13},
+				{Type: TokenTypeIdentifier, Literal: "asm", Line: 0, Pos: 0, Length: 3},
+				{Type: TokenTypeAssignment, Literal: "=", Line: 0, Pos: 12, Length: 1},
 				{Type: TokenTypeNumber, Literal: "1", Line: 0, Pos: 15},
 				{Type: TokenTypeEOF, Literal: "", Line: 0, Pos: 16},
 			},
@@ -61,27 +61,23 @@ func TestLexer_AssemblyTokenization(t *testing.T) {
 			name:  "asm with immediate whitespace",
 			input: `asm ("nop")`,
 			expectedTokens: []LangToken{
-				{Type: TokenTypeIdentifier, Literal: "asm", Line: 0, Pos: 1},
-				{Type: TokenTypeLeftParenthesis, Literal: "(", Line: 0, Pos: 5}, // Skips space
-				{Type: TokenTypeString, Literal: "nop", Line: 0, Pos: 6},
-				{Type: TokenTypeRightParenthesis, Literal: ")", Line: 0, Pos: 11},
-				{Type: TokenTypeEOF, Literal: "", Line: 0, Pos: 12},
+				{Type: TokenTypeAssembly, Literal: "asm", Line: 0, Pos: 0, Length: 3},
+				{Type: TokenTypeLeftParenthesis, Literal: "(", Line: 0, Pos: 4, Length: 1}, // Skips space
+				{Type: TokenTypeString, Literal: "nop", Line: 0, Pos: 5, Length: 3},
+				{Type: TokenTypeRightParenthesis, Literal: ")", Line: 0, Pos: 10, Length: 1},
+				{Type: TokenTypeEOF, Literal: "", Line: 0, Pos: 10, Length: 0},
 			},
 			wantErr: false,
 		},
-		// NOTE: The original lexer code in NextToken had a specific check for 'a' followed by 's' and 'm'.
-		// This check was removed during refactoring, relying solely on readIdentifier + LookupIdent.
-		// The LookupIdent map *does* contain "asm": TokenTypeAssembly.
-		// Let's adjust the expected tokens based on LookupIdent behavior.
 		{
 			name:  "Simple asm call (Corrected based on LookupIdent)",
 			input: `asm("mov eax, ebx")`,
 			expectedTokens: []LangToken{
-				{Type: TokenTypeAssembly, Literal: "asm", Line: 0, Pos: 1}, // Should be TokenTypeAssembly now
-				{Type: TokenTypeLeftParenthesis, Literal: "(", Line: 0, Pos: 4},
-				{Type: TokenTypeString, Literal: "mov eax, ebx", Line: 0, Pos: 5},
-				{Type: TokenTypeRightParenthesis, Literal: ")", Line: 0, Pos: 21},
-				{Type: TokenTypeEOF, Literal: "", Line: 0, Pos: 22},
+				{Type: TokenTypeAssembly, Literal: "asm", Line: 0, Pos: 0, Length: 3}, // Should be TokenTypeAssembly now
+				{Type: TokenTypeLeftParenthesis, Literal: "(", Line: 0, Pos: 3, Length: 1},
+				{Type: TokenTypeString, Literal: "mov eax, ebx", Line: 0, Pos: 4, Length: 12},
+				{Type: TokenTypeRightParenthesis, Literal: ")", Line: 0, Pos: 18, Length: 1},
+				{Type: TokenTypeEOF, Literal: "", Line: 0, Pos: 18, Length: 0},
 			},
 			wantErr: false,
 		},
@@ -89,17 +85,17 @@ func TestLexer_AssemblyTokenization(t *testing.T) {
 			name:  "asm call with args (Corrected based on LookupIdent)",
 			input: `asm("syscall", 1, fd, buf)`,
 			expectedTokens: []LangToken{
-				{Type: TokenTypeAssembly, Literal: "asm", Line: 0, Pos: 1}, // Should be TokenTypeAssembly
-				{Type: TokenTypeLeftParenthesis, Literal: "(", Line: 0, Pos: 4},
-				{Type: TokenTypeString, Literal: "syscall", Line: 0, Pos: 5},
-				{Type: TokenTypeComma, Literal: ",", Line: 0, Pos: 14},
-				{Type: TokenTypeNumber, Literal: "1", Line: 0, Pos: 16},
-				{Type: TokenTypeComma, Literal: ",", Line: 0, Pos: 17},
-				{Type: TokenTypeIdentifier, Literal: "fd", Line: 0, Pos: 19},
-				{Type: TokenTypeComma, Literal: ",", Line: 0, Pos: 21},
-				{Type: TokenTypeIdentifier, Literal: "buf", Line: 0, Pos: 23},
-				{Type: TokenTypeRightParenthesis, Literal: ")", Line: 0, Pos: 26},
-				{Type: TokenTypeEOF, Literal: "", Line: 0, Pos: 27},
+				{Type: TokenTypeAssembly, Literal: "asm", Line: 0, Pos: 0, Length: 3}, // Should be TokenTypeAssembly
+				{Type: TokenTypeLeftParenthesis, Literal: "(", Line: 0, Pos: 3, Length: 1},
+				{Type: TokenTypeString, Literal: "syscall", Line: 0, Pos: 4, Length: 7},
+				{Type: TokenTypeComma, Literal: ",", Line: 0, Pos: 13, Length: 1},
+				{Type: TokenTypeNumber, Literal: "1", Line: 0, Pos: 15, Length: 1},
+				{Type: TokenTypeComma, Literal: ",", Line: 0, Pos: 16, Length: 1},
+				{Type: TokenTypeIdentifier, Literal: "fd", Line: 0, Pos: 18, Length: 2},
+				{Type: TokenTypeComma, Literal: ",", Line: 0, Pos: 20, Length: 1},
+				{Type: TokenTypeIdentifier, Literal: "buf", Line: 0, Pos: 22, Length: 3},
+				{Type: TokenTypeRightParenthesis, Literal: ")", Line: 0, Pos: 25, Length: 1},
+				{Type: TokenTypeEOF, Literal: "", Line: 0, Pos: 25, Length: 0},
 			},
 			wantErr: false,
 		},

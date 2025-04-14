@@ -22,9 +22,9 @@ func TestLexer_NumericTests(t *testing.T) {
 			name:  "Test Numbers",
 			input: "123 456.789",
 			want: []LangToken{
-				{Type: TokenTypeNumber, Literal: "123"},
-				{Type: TokenTypeNumber, Literal: "456.789"},
-				{Type: TokenTypeEOF, Literal: ""},
+				{Type: TokenTypeNumber, Literal: "123", Line: 0, Pos: 0, Length: 3},
+				{Type: TokenTypeNumber, Literal: "456.789", Line: 0, Pos: 4, Length: 7},
+				{Type: TokenTypeEOF, Literal: "", Line: 0, Pos: 10, Length: 0},
 			},
 			wantErr: false,
 		},
@@ -58,7 +58,7 @@ func TestLexer_NumericTests(t *testing.T) {
 			}
 			// Additionally, verify that no extra tokens are produced
 			extraToken, _ := l.NextToken()
-			if extraToken != (LangToken{}) {
+			if extraToken.Type != TokenTypeEOF {
 				t.Errorf("NextToken() produced extra token, got = %v", extraToken)
 			}
 		})

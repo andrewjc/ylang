@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-func TestLexer_NextToken(t *testing.T) {
+func TestLexer_LoopTests(t *testing.T) {
 	type fields struct {
 		reader   *bufio.Reader
 		position int
