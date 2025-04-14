@@ -7,15 +7,17 @@ import (
 
 func (p *Parser) nextToken() {
 	p.currentToken = p.peekToken
-	// Get the next token from the lexer, handling potential lexer errors
-	p.peekToken, p.peekTokenErr = p.lexer.NextToken()
-	// If lexer returned an error, store it
-	if p.peekTokenErr != nil && p.peekToken.Type != TokenTypeEOF { // Don't treat EOF signal as error here
-		// Avoid adding duplicate lexer errors if already reported
+	p.peekToken = p.peekToken2
+	p.peekToken2 = p.peekToken3
+	nextTokenFromLexer, lexErr := p.lexer.NextToken()
+
+	p.peekToken3 = nextTokenFromLexer
+
+	if lexErr != nil && p.peekToken3.Type != TokenTypeEOF { // Report errors unless it's just EOF
+		errMsg := fmt.Sprintf("Lexer error: %v at line %d, pos %d", lexErr, nextTokenFromLexer.Line+1, nextTokenFromLexer.Pos)
 		isDuplicate := false
-		errMsg := fmt.Sprintf("Lexer error: %v at line %d, pos %d", p.peekTokenErr, p.peekToken.Line, p.peekToken.Pos)
-		for _, err := range p.errors {
-			if err == errMsg {
+		for _, existingErr := range p.errors {
+			if existingErr == errMsg {
 				isDuplicate = true
 				break
 			}
@@ -34,30 +36,27 @@ func (p *Parser) peekTokenIs(t TokenType) bool {
 	return p.peekToken.Type == t
 }
 
+func (p *Parser) peekToken2Is(t TokenType) bool {
+	return p.peekToken2.Type == t
+}
+
+func (p *Parser) peekToken3Is(t TokenType) bool {
+	return p.peekToken3.Type == t
+}
+
 func (p *Parser) peekTokenAtIndex(index int) LangToken {
-	// Save the current position
-	currentPosition := p.lexer.Position
-
-	// Move to the desired token index
-	for i := 0; i < index; i++ {
-		_, err := p.lexer.NextToken()
-		if err != nil {
-			fmt.Println("Error getting token at index", index)
-			return LangToken{}
-		}
+	switch index {
+	case 0:
+		return p.currentToken
+	case 1:
+		return p.peekToken
+	case 2:
+		return p.peekToken2
+	case 3:
+		return p.peekToken3
+	default:
+		return LangToken{Type: TokenTypeEOF, Literal: "", Line: 0, Pos: 0, Length: 0}
 	}
-
-	// Get the token at the desired index
-	token, err := p.lexer.NextToken()
-	if err != nil {
-		return LangToken{}
-	}
-
-	// Restore the lexer position
-	p.lexer.Position = currentPosition
-	p.lexer.ReadChar()
-
-	return token
 }
 
 func (p *Parser) expectPeek(t TokenType) bool {

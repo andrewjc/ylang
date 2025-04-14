@@ -33,7 +33,6 @@ func (p *Parser) parseExpression(precedence int) ast.ExpressionNode {
 		if leftExp == nil {
 			return nil
 		}
-		p.nextToken()
 	}
 
 	return leftExp
@@ -58,144 +57,155 @@ func (p *Parser) parseInfixExpression(left ast.ExpressionNode) ast.ExpressionNod
 }
 
 func (p *Parser) parseParenthesisExpression() ast.ExpressionNode {
-	/*
-	   Handle special case where a lambda expression is provided as the object being assigned to a variable
-	*/
+	startToken := p.currentToken // Keep track of the opening '(' line/pos for errors
 
-	startToken := p.currentToken // '('
-	p.nextToken()                // consume '('
+	// Check for empty parameters lambda: () ->
+	if p.peekTokenIs(TokenTypeRightParenthesis) && p.peekToken2Is(TokenTypeLambdaArrow) {
+		p.nextToken()                   // Consume '('
+		p.nextToken()                   // Consume ')' - currentToken is now ')'
+		lambdaArrowToken := p.peekToken // The '->' token
+		p.nextToken()                   // Consume '->' - currentToken is now '->'
 
-	if p.currentTokenIs(TokenTypeRightParenthesis) && p.peekTokenIs(TokenTypeLambdaArrow) {
-		p.nextToken() // consume ')'
-		lambdaArrowToken := p.peekToken
-		p.nextToken() // consume '->'
+		lambda := &ast.LambdaExpression{Token: lambdaArrowToken} // Use '->' as the token for the node
+		lambda.Parameters = []*ast.Identifier{}                  // Empty params
 
-		lambda := &ast.LambdaExpression{Token: lambdaArrowToken}
-		lambda.Parameters = []*ast.Identifier{}
-
-		// Parse Body (Block or Expression)
-		p.nextToken() // Move to start of body
-		if p.currentTokenIs(TokenTypeLeftBrace) {
-			bodyNode := p.parseBlockStatement()
-			if bodyNode == nil {
-				return nil
-			}
-			lambda.Body = bodyNode
-			p.nextToken() // Consume '}'
-		} else {
-			lambda.Body = p.parseExpression(LOWEST)
-			if lambda.Body == nil {
-				return nil
-			}
-			if p.currentTokenIs(TokenTypeSemicolon) {
-				p.nextToken()
-			}
+		// Parse Body after '->'
+		p.nextToken() // Move to the start of the body expression/block
+		lambda.Body = p.parseLambdaBody()
+		if lambda.Body == nil {
+			return nil // Error handled in parseLambdaBody
 		}
 		return lambda
 	}
 
-	initialPos := p.lexer.Position
-	initialCurrent := p.currentToken
-	initialPeek := p.peekToken
-	initialErrorCount := len(p.errors)
-
-	var params []*ast.Identifier
-	isPotentialParamList := true
-	paramParseEndedAtRightParen := false
-
-	// Try parsing identifier list
-	if p.currentTokenIs(TokenTypeIdentifier) {
-		params = append(params, &ast.Identifier{Token: p.currentToken, Value: p.currentToken.Literal})
-		p.nextToken()
-		for p.currentTokenIs(TokenTypeComma) {
-			p.nextToken() // consume ','
-			if !p.currentTokenIs(TokenTypeIdentifier) {
-				isPotentialParamList = false
-				break
-			}
-			params = append(params, &ast.Identifier{Token: p.currentToken, Value: p.currentToken.Literal})
-			p.nextToken() // consume identifier
-		}
-
-		if isPotentialParamList && p.currentTokenIs(TokenTypeRightParenthesis) {
-			paramParseEndedAtRightParen = true
-		} else {
-			isPotentialParamList = false
-		}
-	} else {
-		isPotentialParamList = false
-	}
-
-	if isPotentialParamList && paramParseEndedAtRightParen && p.peekTokenIs(TokenTypeLambdaArrow) {
-		lambdaArrowToken := p.peekToken
-		p.nextToken() // consume '->'
-
-		lambda := &ast.LambdaExpression{Token: lambdaArrowToken}
+	// Check for non-empty parameters lambda: (ident, ...) ->
+	isLambda, params := p.probeIsLambdaParameters()
+	if isLambda {
+		p.nextToken()                                          // Consume '('
+		lambda := &ast.LambdaExpression{Token: p.currentToken} // Use '(' as token for now
 		lambda.Parameters = params
 
-		if p.expectPeek(TokenTypeLeftBrace) {
-			bodyNode := p.parseBlockStatement()
-			if bodyNode == nil {
-				return nil
-			}
-			lambda.Body = bodyNode
-		} else {
-			lambda.Body = p.parseExpression(LOWEST)
-			if lambda.Body == nil {
-				return nil
-			}
-			if p.currentTokenIs(TokenTypeSemicolon) {
-				p.nextToken()
-			}
-		}
-		return lambda
-	}
-
-	p.errors = p.errors[:initialErrorCount]
-	p.currentToken = initialCurrent
-	p.peekToken = initialPeek
-
-	p.lexer.Position = initialPos
-
-	if initialPos > 0 {
-		p.lexer.ReadChar()
-	}
-	p.nextToken() // Re-read current token after '('
-	p.nextToken() // Re-read peek token
-
-	if p.currentToken.Type != initialCurrent.Type || p.currentToken.Literal != initialCurrent.Literal {
-		p.errors = append(p.errors, fmt.Sprintf("[CRITICAL] Parser state reset failed! Cannot parse grouped expression reliably near line %d", startToken.Line))
+		// Consume tokens up to and including ')'
 		for !p.currentTokenIs(TokenTypeRightParenthesis) && !p.currentTokenIs(TokenTypeEOF) {
 			p.nextToken()
 		}
-		if p.currentTokenIs(TokenTypeRightParenthesis) {
-			p.nextToken()
+		if !p.currentTokenIs(TokenTypeRightParenthesis) {
+			p.errors = append(p.errors, fmt.Sprintf("Expected ')' after lambda parameters starting line %d, got %s", startToken.Line+1, p.currentToken.Type))
+			return nil // Or try recovery?
 		}
-		return nil
+
+		// Expect '->'
+		if !p.expectPeek(TokenTypeLambdaArrow) { // Consumes ')' and checks/consumes '->'
+			p.errors = append(p.errors, fmt.Sprintf("Expected '->' after lambda parameter list ending line %d, got %s", p.currentToken.Line+1, p.peekToken.Type))
+			return nil // Or try recovery?
+		}
+		lambda.Token = p.currentToken // Update token to be '->'
+
+		// Parse Body after '->'
+		p.nextToken() // Move to the start of the body
+		lambda.Body = p.parseLambdaBody()
+		if lambda.Body == nil {
+			return nil // Error handled in parseLambdaBody
+		}
+		return lambda
 	}
 
-	// Parse the inner expression
+	// If it doesn't look like a lambda, parse as a grouped expression
+	p.nextToken() // Consume '('
 	expr := p.parseExpression(LOWEST)
 	if expr == nil {
-		p.advanceToRecoveryPoint()
+		// Error should have been recorded by parseExpression
+		// If we are stuck at ')', consume it to potentially recover.
+		if p.currentTokenIs(TokenTypeRightParenthesis) {
+			p.nextToken()
+		} else {
+			// p.advanceToRecoveryPoint() // Maybe needed if parseExpression failed badly
+		}
 		return nil
 	}
 
-	if !p.currentTokenIs(TokenTypeRightParenthesis) {
-		if !p.expectPeek(TokenTypeRightParenthesis) { // Checks peek and consumes ')' if correct
-			p.errors = append(p.errors, fmt.Sprintf("Expected ')' after grouped expression starting line %d, got %s", startToken.Line, p.peekToken.Type)) // Adjusted error message
-			p.advanceToRecoveryPoint()
-			return nil
-		}
-	} else {
-		p.nextToken()
+	if !p.expectPeek(TokenTypeRightParenthesis) {
+		return nil
 	}
 
 	return expr
 }
 
+func (p *Parser) probeIsLambdaParameters() (bool, []*ast.Identifier) {
+	if !(p.currentTokenIs(TokenTypeLeftParenthesis)) {
+		return false, nil // Should be called when current is '('
+	}
+
+	// Handle empty params () -> checked by caller already
+	if p.peekTokenIs(TokenTypeRightParenthesis) && p.peekToken2Is(TokenTypeLambdaArrow) {
+		return false, nil // Handled by caller
+	}
+
+	// Handle single param (ident) ->
+	if p.peekTokenIs(TokenTypeIdentifier) && p.peekToken2Is(TokenTypeRightParenthesis) && p.peekToken3Is(TokenTypeLambdaArrow) {
+		params := []*ast.Identifier{{Token: p.peekToken, Value: p.peekToken.Literal}}
+		return true, params
+	}
+
+	// Handle multiple params (ident, ident, ...) ) ->
+	if !p.peekTokenIs(TokenTypeIdentifier) {
+		return false, nil // First item after ( must be identifier for non-empty list
+	}
+
+	var params []*ast.Identifier
+	params = append(params, &ast.Identifier{Token: p.peekToken, Value: p.peekToken.Literal})
+	idx := 2 // Start peeking at index 2 (potential comma or ')')
+
+	for {
+		pk := p.peekTokenAtIndex(idx)
+		if pk.Type == TokenTypeComma {
+			idx++ // Move past comma
+			pkNext := p.peekTokenAtIndex(idx)
+			if pkNext.Type == TokenTypeIdentifier {
+				params = append(params, &ast.Identifier{Token: pkNext, Value: pkNext.Literal})
+				idx++    // Move past identifier
+				continue // Look for next comma or ')'
+			} else {
+				return false, nil // Expected identifier after comma
+			}
+		} else if pk.Type == TokenTypeRightParenthesis {
+			// Found closing parenthesis. Now check if the *next* token is '->'
+			pkArrow := p.peekTokenAtIndex(idx + 1)
+			if pkArrow.Type == TokenTypeLambdaArrow {
+				return true, params // Looks like a lambda!
+			} else {
+				return false, nil // Found ')' but not followed by '->'
+			}
+		} else {
+			// Unexpected token in parameter list probe
+			return false, nil
+		}
+	}
+}
+
+func (p *Parser) parseLambdaBody() ast.ExpressionNode {
+	if p.currentTokenIs(TokenTypeLeftBrace) {
+		// Parse block statement. parseBlockStatement should consume '{' and '}'
+		bodyNode := p.parseBlockStatement() // Re-use block parser
+		if bodyNode == nil {
+			p.errors = append(p.errors, fmt.Sprintf("Failed to parse block body for lambda at line %d", p.currentToken.Line+1))
+			return nil
+		}
+		return bodyNode
+	} else {
+		// Parse single expression body
+		bodyExpr := p.parseExpression(LOWEST)
+		if bodyExpr == nil {
+			p.errors = append(p.errors, fmt.Sprintf("Failed to parse expression body for lambda at line %d", p.currentToken.Line+1))
+			return nil
+		}
+		return bodyExpr
+	}
+}
+
 func (p *Parser) expressionToParameters(expr ast.ExpressionNode) ([]*ast.Identifier, bool) {
-	params := []*ast.Identifier{}
+
+	var params []*ast.Identifier
 
 	if ident, ok := expr.(*ast.Identifier); ok {
 		params = append(params, ident)

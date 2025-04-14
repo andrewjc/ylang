@@ -52,6 +52,8 @@ type Parser struct {
 
 	currentToken LangToken
 	peekToken    LangToken
+	peekToken2   LangToken
+	peekToken3   LangToken
 	peekTokenErr error
 
 	prefixParseFns map[TokenType]prefixParseFn
@@ -98,6 +100,8 @@ func NewParser(lexer *Lexer) *Parser {
 	p.registerInfix(TokenTypeIf, p.parseInlineIfElseTernaryExpression)
 
 	// Read two tokens, so currentToken and peekToken are both set
+	p.nextToken()
+	p.nextToken()
 	p.nextToken()
 	p.nextToken()
 
@@ -207,8 +211,19 @@ func (p *Parser) Errors() []string {
 }
 
 func (p *Parser) peekError(t TokenType) {
-	msg := fmt.Sprintf("expected next token to be %s, got %s instead at line %d, position %d",
-		t, p.peekToken.Type, p.currentToken.Line, p.currentToken.Pos)
+	peekType := TokenTypeUndefined
+	peekLiteral := ""
+	peekLine := p.currentToken.Line
+	peekPos := p.currentToken.Pos + p.currentToken.Length
+
+	if p.peekToken.Type != "" {
+		peekType = p.peekToken.Type
+		peekLiteral = p.peekToken.Literal
+		peekLine = p.peekToken.Line
+		peekPos = p.peekToken.Pos
+	}
+	msg := fmt.Sprintf("expected next token to be %s, got %s ('%s') instead at line %d, position %d",
+		t, peekType, peekLiteral, peekLine+1, peekPos)
 	p.errors = append(p.errors, msg)
 }
 

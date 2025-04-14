@@ -83,13 +83,9 @@ func TestBlockStatementParsingUnit(t *testing.T) {
 				if len(mainBody.Statements) != 1 {
 					t.Fatalf("Expected 1 statement in main body (the nested block), got %d", len(mainBody.Statements))
 				}
-				exprStmt, ok := mainBody.Statements[0].(*ast.ExpressionStatement)
+				targetBlock, ok = mainBody.Statements[0].(*ast.BlockStatement)
 				if !ok {
-					t.Fatalf("Expected ExpressionStatement wrapping block, got %T", mainBody.Statements[0])
-				}
-				targetBlock, ok = exprStmt.Expression.(*ast.BlockStatement)
-				if !ok {
-					t.Fatalf("Expected main body's first statement's expression to be *ast.BlockStatement, got %T", exprStmt.Expression)
+					t.Fatalf("Expected main body's first statement to be *ast.BlockStatement, got %T", mainBody.Statements[0])
 				}
 			} else if tt.name == "Nested Blocks" {
 				// The target is the first block within the main block

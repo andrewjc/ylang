@@ -7,41 +7,56 @@ import (
 )
 
 func (p *Parser) parseStatement() ast.Statement {
+	if p.currentTokenIs(TokenTypeSemicolon) {
+		p.nextToken()
+		return nil
+	}
+
 	switch p.currentToken.Type {
 	case TokenTypeLet:
-		return p.parseLetStatement()
-	case TokenTypeReturn:
-		node := p.parseReturnStatement()
-		if node == nil {
-			return nil
+		ls := p.parseLetStatement()
+		if ls == nil {
+			return nil // Propagate nil on failure
 		}
-		if stmt, ok := node.(ast.Statement); ok {
-			// Return is a statement, but its also an expression
+		return ls
+	case TokenTypeReturn:
+		rsNode := p.parseReturnStatement()
+		if rsNode == nil {
+			return nil // Propagate nil on failure
+		}
+		if stmt, ok := rsNode.(ast.Statement); ok {
 			return stmt
 		}
-		p.errors = append(p.errors, fmt.Sprintf("Internal Error: *ast.ReturnStatement does not implement ast.Statement, got %s", node.TokenLiteral()))
+		p.errors = append(p.errors, fmt.Sprintf("INTERNAL ERROR: *ast.ReturnStatement does not satisfy ast.Statement interface near line %d", p.currentToken.Line+1))
 		return nil
 	case TokenTypeImport:
 		return p.parseImportStatement()
 	case TokenTypeIf:
-		node := p.parseIfStatement()
-		if node == nil {
+		ifNode := p.parseIfStatement()
+		if ifNode == nil {
 			return nil
 		}
-		if stmt, ok := node.(ast.Statement); ok {
+		if stmt, ok := ifNode.(ast.Statement); ok {
 			return stmt
 		}
-		p.errors = append(p.errors, fmt.Sprintf("Internal Error: *ast.IfStatement does not implement ast.Statement, got %s", node.TokenLiteral()))
+		p.errors = append(p.errors, fmt.Sprintf("INTERNAL ERROR: *ast.IfStatement does not satisfy ast.Statement interface near line %d", p.currentToken.Line+1))
 		return nil
 	case TokenTypeLeftBrace:
-		node := p.parseBlockStatement()
-		if node == nil {
+		blockNode := p.parseBlockStatement()
+		if blockNode == nil {
 			return nil
 		}
-		return node.(ast.Statement)
-	// TODO: Add For, While, Switch cases, or they'll be treated as expressions???
+		if stmt, ok := blockNode.(ast.Statement); ok {
+			return stmt
+		}
+		p.errors = append(p.errors, fmt.Sprintf("INTERNAL ERROR: *ast.BlockStatement does not satisfy ast.Statement interface near line %d", p.currentToken.Line+1))
+		return nil
 	default:
-		return p.parseExpressionStatement()
+		es := p.parseExpressionStatement()
+		if es == nil {
+			return nil // Propagate nil on failure or empty statement
+		}
+		return es
 	}
 }
 
@@ -94,7 +109,7 @@ func (p *Parser) parseLetStatement() *ast.LetStatement {
 		return nil
 	}
 
-	if p.currentTokenIs(TokenTypeSemicolon) {
+	if p.peekTokenIs(TokenTypeSemicolon) {
 		p.nextToken()
 	}
 	return stmt
@@ -119,7 +134,7 @@ func (p *Parser) parseReturnStatement() ast.ExpressionNode {
 		return nil
 	}
 
-	if p.currentTokenIs(TokenTypeSemicolon) {
+	if p.peekTokenIs(TokenTypeSemicolon) {
 		p.nextToken()
 
 	}
@@ -127,16 +142,17 @@ func (p *Parser) parseReturnStatement() ast.ExpressionNode {
 }
 
 func (p *Parser) parseExpressionStatement() *ast.ExpressionStatement {
+	if p.currentTokenIs(TokenTypeSemicolon) {
+		p.nextToken() // Consume the semicolon
+		return nil    // Return a true nil, indicating no statement parsed
+	}
+
 	stmt := &ast.ExpressionStatement{Token: p.currentToken}
 	stmt.Expression = p.parseExpression(LOWEST)
 	if stmt.Expression == nil {
-		if p.currentTokenIs(TokenTypeSemicolon) {
-			p.nextToken()
-			return nil
-		}
 		return nil
 	}
-	if p.currentTokenIs(TokenTypeSemicolon) {
+	if p.peekTokenIs(TokenTypeSemicolon) {
 		p.nextToken()
 	}
 	return stmt
