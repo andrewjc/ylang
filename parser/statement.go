@@ -109,7 +109,7 @@ func (p *Parser) parseLetStatement() *ast.LetStatement {
 		return nil
 	}
 
-	if p.peekTokenIs(TokenTypeSemicolon) {
+	for p.currentTokenIs(TokenTypeSemicolon) || p.peekTokenIs(TokenTypeSemicolon) {
 		p.nextToken()
 	}
 	return stmt
@@ -134,9 +134,8 @@ func (p *Parser) parseReturnStatement() ast.ExpressionNode {
 		return nil
 	}
 
-	if p.peekTokenIs(TokenTypeSemicolon) {
+	for p.currentTokenIs(TokenTypeSemicolon) || p.peekTokenIs(TokenTypeSemicolon) {
 		p.nextToken()
-
 	}
 	return stmt
 }
@@ -152,7 +151,7 @@ func (p *Parser) parseExpressionStatement() *ast.ExpressionStatement {
 	if stmt.Expression == nil {
 		return nil
 	}
-	if p.peekTokenIs(TokenTypeSemicolon) {
+	for p.currentTokenIs(TokenTypeSemicolon) || p.peekTokenIs(TokenTypeSemicolon) {
 		p.nextToken()
 	}
 	return stmt

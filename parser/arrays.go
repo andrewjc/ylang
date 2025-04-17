@@ -7,7 +7,7 @@ import (
 )
 
 func (p *Parser) parseArrayLiteral() ast.ExpressionNode {
-	arrayLit := &ast.ArrayLiteral{Token: p.currentToken} // Current token is '['
+	arrayLit := &ast.ArrayLiteral{Token: p.currentToken}
 	arrayLit.Elements = []ast.ExpressionNode{}
 
 	// Check for empty array: '[]'
@@ -16,36 +16,40 @@ func (p *Parser) parseArrayLiteral() ast.ExpressionNode {
 		return arrayLit
 	}
 
-	// Consume '[' and move to the first element (or comma/']')
 	p.nextToken()
 
 	firstElem := p.parseExpression(LOWEST)
-	if firstElem != nil { // Check if parsing succeeded
-		arrayLit.Elements = append(arrayLit.Elements, firstElem)
+	if firstElem == nil {
+		return nil
 	}
+	arrayLit.Elements = append(arrayLit.Elements, firstElem)
 
-	// Parse subsequent elements (preceded by a comma)
 	for p.peekTokenIs(TokenTypeComma) {
 		p.nextToken() // Consume ','
 		p.nextToken() // Move to the start of the next expression
 
-		// Check for trailing comma before closing bracket, e.g., [1, 2,]
 		if p.currentTokenIs(TokenTypeRightBracket) {
 			p.errors = append(p.errors, fmt.Sprintf("unexpected trailing comma in array literal at line %d, pos %d", p.currentToken.Line, p.currentToken.Pos))
-			break // Exit loop, let expectPeek handle ']'
+			goto endLoop
 		}
 
 		elem := p.parseExpression(LOWEST)
-		if elem != nil {
-			arrayLit.Elements = append(arrayLit.Elements, elem)
+		if elem == nil {
+			return arrayLit
 		}
+		arrayLit.Elements = append(arrayLit.Elements, elem)
 	}
 
-	if p.expectPeek(TokenTypeRightBracket) {
-		p.nextToken()
-	} else {
-		p.errors = append(p.errors, fmt.Sprintf("expected ']' at line %d, got %s", p.currentToken.Line, p.currentToken.Type))
+endLoop:
+
+	// After parsing elements and commas (or just the first element), expect ']'
+	if !p.expectPeek(TokenTypeRightBracket) {
+		if !p.peekTokenIs(TokenTypeEOF) {
+			p.advanceToRecoveryPoint()
+		}
+		return arrayLit
 	}
+
 	return arrayLit
 }
 

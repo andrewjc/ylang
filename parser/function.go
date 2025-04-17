@@ -99,9 +99,6 @@ func (p *Parser) parseFunctionDefinition() *ast.FunctionDefinition {
 			return nil
 		}
 		fn.Body = bodyNode
-		if p.currentTokenIs(TokenTypeSemicolon) {
-			p.nextToken()
-		}
 	} else {
 		fn.Body = p.parseExpression(LOWEST)
 		if fn.Body == nil {
@@ -110,9 +107,6 @@ func (p *Parser) parseFunctionDefinition() *ast.FunctionDefinition {
 			}
 			p.advanceToRecoveryPoint()
 			return nil
-		}
-		if p.currentTokenIs(TokenTypeSemicolon) {
-			p.nextToken()
 		}
 	}
 
