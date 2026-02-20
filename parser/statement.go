@@ -74,8 +74,9 @@ func (p *Parser) parseAssignmentExpression(left ast.ExpressionNode) ast.Expressi
 		Operator: p.currentToken.Literal, // "="
 	}
 	precedence := p.currentPrecedence()
+	_ = precedence // assignment is right-associative; parse full right-side expression
 	p.nextToken()
-	expr.Right = p.parseExpression(precedence - 1)
+	expr.Right = p.parseExpression(LOWEST)
 	if expr.Right == nil {
 		return nil
 	}
@@ -109,7 +110,11 @@ func (p *Parser) parseLetStatement() *ast.LetStatement {
 		return nil
 	}
 
-	for p.currentTokenIs(TokenTypeSemicolon) || p.peekTokenIs(TokenTypeSemicolon) {
+	// Advance past the expression value to avoid leaving cursor on the last expression token
+	if !p.currentTokenIs(TokenTypeSemicolon) && !p.currentTokenIs(TokenTypeRightBrace) && !p.currentTokenIs(TokenTypeEOF) {
+		p.nextToken()
+	}
+	if p.currentTokenIs(TokenTypeSemicolon) {
 		p.nextToken()
 	}
 	return stmt
@@ -134,8 +139,11 @@ func (p *Parser) parseReturnStatement() ast.ExpressionNode {
 		return nil
 	}
 
-	for p.currentTokenIs(TokenTypeSemicolon) || p.peekTokenIs(TokenTypeSemicolon) {
-		p.nextToken()
+	if p.peekTokenIs(TokenTypeSemicolon) {
+		p.nextToken() // advance to ';'
+	}
+	if p.currentTokenIs(TokenTypeSemicolon) {
+		p.nextToken() // advance past ';'
 	}
 	return stmt
 }
@@ -151,8 +159,12 @@ func (p *Parser) parseExpressionStatement() *ast.ExpressionStatement {
 	if stmt.Expression == nil {
 		return nil
 	}
-	for p.currentTokenIs(TokenTypeSemicolon) || p.peekTokenIs(TokenTypeSemicolon) {
+	// Advance past the expression value
+	if !p.currentTokenIs(TokenTypeSemicolon) && !p.currentTokenIs(TokenTypeRightBrace) && !p.currentTokenIs(TokenTypeEOF) {
 		p.nextToken()
+	}
+	if p.currentTokenIs(TokenTypeSemicolon) {
+		p.nextToken() // advance past ';'
 	}
 	return stmt
 }

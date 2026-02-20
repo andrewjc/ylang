@@ -19,7 +19,6 @@ func (p *Program) String() string {
 	// Print main function if available
 	if p.MainFunction != nil {
 		out.WriteString(p.MainFunction.String())
-		out.WriteString("\n")
 	}
 	return out.String()
 }

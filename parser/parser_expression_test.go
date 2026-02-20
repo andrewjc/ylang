@@ -85,10 +85,7 @@ func TestPrefixExpressionUnit(t *testing.T) {
 		operator string
 		value    interface{} // Value of the operand
 	}{
-		// {"main() -> {!true;}", "!", true},   // Need boolean support
-		// {"main() -> {!false;}", "!", false}, // Need boolean support
 		{"main() -> {-15;}", "-", int64(15)},
-		// {"main() -> {!5;}", "!", int64(5)},    // '!' usually for booleans, but test if parser handles it
 	}
 
 	for _, tt := range prefixTests {
@@ -114,30 +111,15 @@ func TestPrefixExpressionUnit(t *testing.T) {
 				t.Fatalf("MainFunction.Body.Statements[0] is not *ast.ExpressionStatement. got=%T", program.MainFunction.Body.(*ast.BlockStatement).Statements[0])
 			}
 
-			// Assuming a PrefixExpression node exists or should exist
-			_, ok = stmt.Expression.(ast.ExpressionNode) // Placeholder - replace with *ast.PrefixExpression if defined
+			exp, ok := stmt.Expression.(*ast.PrefixExpression)
 			if !ok {
-				// If PrefixExpression doesn't exist, this test will fail, indicating missing feature
 				t.Fatalf("stmt.Expression is not *ast.PrefixExpression. got=%T (%s)", stmt.Expression, stmt.Expression.String())
 			}
 
-			// Assuming PrefixExpression has Operator and Right fields
-			// if exp.Operator != tt.operator {
-			//  t.Errorf("exp.Operator is not '%s'. got=%s", tt.operator, exp.Operator)
-			// }
-			// testLiteralExpression(t, exp.Right, tt.value)
-
-			// Temporary check based on current parser behavior (parses '-' then number)
-			// This needs to be updated when prefix operators are properly handled.
-			infExp, isInfix := stmt.Expression.(*ast.InfixExpression)
-			if tt.operator == "-" && isInfix && infExp.Left == nil { // Heuristic for unary minus parsed as infix
-				if infExp.Operator != "-" {
-					t.Errorf("Expected operator '-' for negation, got %s", infExp.Operator)
-				}
-				testLiteralExpression(t, infExp.Right, tt.value)
-			} else {
-				t.Errorf("Expected prefix expression for input %q, but got %T (%s). Need *ast.PrefixExpression support.", tt.input, stmt.Expression, stmt.Expression.String())
+			if exp.Operator != tt.operator {
+				t.Errorf("exp.Operator is not '%s'. got=%s", tt.operator, exp.Operator)
 			}
+			testLiteralExpression(t, exp.Right, tt.value)
 		})
 	}
 }

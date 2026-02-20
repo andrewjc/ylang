@@ -6,3 +6,8 @@ func (cg *CodeGenerator) VisitAssignmentStatement(as *ast.AssignmentStatement) e
 	//TODO implement me
 	panic("implement me")
 }
+
+func (cg *CodeGenerator) VisitPrefixExpression(pe *ast.PrefixExpression) error {
+	//TODO implement me
+	panic("implement me")
+}

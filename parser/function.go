@@ -108,8 +108,47 @@ func (p *Parser) parseFunctionDefinition() *ast.FunctionDefinition {
 			p.advanceToRecoveryPoint()
 			return nil
 		}
+		// Consume optional trailing semicolon for expression-body functions
+		if p.peekTokenIs(TokenTypeSemicolon) {
+			p.nextToken()
+		}
+		if p.currentTokenIs(TokenTypeSemicolon) {
+			p.nextToken()
+		}
 	}
 
+	return fn
+}
+
+func (p *Parser) parseAnonymousFunctionExpression() ast.ExpressionNode {
+	startToken := p.currentToken // 'function' token
+	if !p.peekTokenIs(TokenTypeLeftParenthesis) {
+		p.errors = append(p.errors, fmt.Sprintf("Expected '(' after 'function' keyword at line %d", startToken.Line))
+		return nil
+	}
+	p.nextToken() // advance to '('
+
+	fn := &ast.FunctionDefinition{Token: startToken}
+	fn.Name = nil // anonymous
+
+	fn.Parameters = p.parseFunctionParameters()
+	if fn.Parameters == nil {
+		return nil
+	}
+	p.nextToken() // consume ')'
+
+	if !p.currentTokenIs(TokenTypeLambdaArrow) {
+		p.errors = append(p.errors, fmt.Sprintf("Expected '->' for anonymous function at line %d", p.currentToken.Line))
+		return nil
+	}
+	fn.Token = p.currentToken // set token to '->'
+	p.nextToken()             // move past '->'
+
+	if p.currentTokenIs(TokenTypeLeftBrace) {
+		fn.Body = p.parseBlockStatement()
+	} else {
+		fn.Body = p.parseExpression(LOWEST)
+	}
 	return fn
 }
 

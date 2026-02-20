@@ -38,6 +38,8 @@ func (p *Parser) advanceToRecoveryPoint() {
 		TokenTypeData:     true,
 		TokenTypeImport:   true,
 	}
+	// Always advance at least once to avoid getting stuck on the current token
+	p.nextToken()
 	for !recoveryTokens[p.currentToken.Type] {
 		p.nextToken()
 		if p.currentToken.Type == TokenTypeEOF {

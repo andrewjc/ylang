@@ -10,6 +10,7 @@ type Visitor interface {
 	VisitStringLiteral(sl *StringLiteral) error
 	VisitIdentifier(id *Identifier) error
 	VisitInfixExpression(ie *InfixExpression) error
+	VisitPrefixExpression(pe *PrefixExpression) error
 	VisitCallExpression(ce *CallExpression) error
 	VisitArrayLiteral(al *ArrayLiteral) error
 	VisitLambdaExpression(le *LambdaExpression) error

@@ -9,11 +9,13 @@ func (p *Parser) nextToken() {
 	p.currentToken = p.peekToken
 	p.peekToken = p.peekToken2
 	p.peekToken2 = p.peekToken3
+	p.peekToken3 = p.peekToken4
+	p.peekToken4 = p.peekToken5
 	nextTokenFromLexer, lexErr := p.lexer.NextToken()
 
-	p.peekToken3 = nextTokenFromLexer
+	p.peekToken5 = nextTokenFromLexer
 
-	if lexErr != nil && p.peekToken3.Type != TokenTypeEOF { // Report errors unless it's just EOF
+	if lexErr != nil && p.peekToken5.Type != TokenTypeEOF { // Report errors unless it's just EOF
 		errMsg := fmt.Sprintf("Lexer error: %v at line %d, pos %d", lexErr, nextTokenFromLexer.Line+1, nextTokenFromLexer.Pos)
 		isDuplicate := false
 		for _, existingErr := range p.errors {
@@ -54,6 +56,10 @@ func (p *Parser) peekTokenAtIndex(index int) LangToken {
 		return p.peekToken2
 	case 3:
 		return p.peekToken3
+	case 4:
+		return p.peekToken4
+	case 5:
+		return p.peekToken5
 	default:
 		return LangToken{Type: TokenTypeEOF, Literal: "", Line: 0, Pos: 0, Length: 0}
 	}

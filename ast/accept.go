@@ -37,6 +37,10 @@ func (ie *InfixExpression) Accept(v Visitor) error {
 	return v.VisitInfixExpression(ie)
 }
 
+func (pe *PrefixExpression) Accept(v Visitor) error {
+	return v.VisitPrefixExpression(pe)
+}
+
 func (ce *CallExpression) Accept(v Visitor) error {
 	return v.VisitCallExpression(ce)
 }

@@ -38,6 +38,19 @@ func (p *Parser) parseExpression(precedence int) ast.ExpressionNode {
 	return leftExp
 }
 
+func (p *Parser) parsePrefixExpression() ast.ExpressionNode {
+	expr := &ast.PrefixExpression{
+		Token:    p.currentToken,
+		Operator: p.currentToken.Literal,
+	}
+	p.nextToken()
+	expr.Right = p.parseExpression(PREFIX)
+	if expr.Right == nil {
+		return nil
+	}
+	return expr
+}
+
 func (p *Parser) parseInfixExpression(left ast.ExpressionNode) ast.ExpressionNode {
 	expression := &ast.InfixExpression{
 		Token:    p.currentToken,
@@ -61,16 +74,15 @@ func (p *Parser) parseParenthesisExpression() ast.ExpressionNode {
 
 	// Check for empty parameters lambda: () ->
 	if p.peekTokenIs(TokenTypeRightParenthesis) && p.peekToken2Is(TokenTypeLambdaArrow) {
-		p.nextToken()                   // Consume '('
-		p.nextToken()                   // Consume ')' - currentToken is now ')'
-		lambdaArrowToken := p.peekToken // The '->' token
-		p.nextToken()                   // Consume '->' - currentToken is now '->'
+		p.nextToken()                    // Consume '(' - currentToken is now ')'
+		p.nextToken()                    // Consume ')' - currentToken is now '->'
+		lambdaArrowToken := p.currentToken // The '->' token
+		p.nextToken()                    // Move past '->' to body start
 
-		lambda := &ast.LambdaExpression{Token: lambdaArrowToken} // Use '->' as the token for the node
-		lambda.Parameters = []*ast.Identifier{}                  // Empty params
+		lambda := &ast.LambdaExpression{Token: lambdaArrowToken}
+		lambda.Parameters = []*ast.Identifier{} // Empty params
 
-		// Parse Body after '->'
-		p.nextToken() // Move to the start of the body expression/block
+		// Parse Body - currentToken is already at the start of the body
 		lambda.Body = p.parseLambdaBody()
 		if lambda.Body == nil {
 			return nil // Error handled in parseLambdaBody
