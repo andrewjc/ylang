@@ -101,9 +101,9 @@ func (p *Parser) parseLetStatement() *ast.LetStatement {
 		p.errors = append(p.errors, fmt.Sprintf("Expected '=' operator after let statement identifier near line %d, got %s", p.currentToken.Line, p.currentToken.Type))
 	}
 
+	errorsBeforeExpr := len(p.errors)
 	stmt.Value = p.parseExpression(LOWEST)
 	if stmt.Value == nil {
-		errorsBeforeExpr := len(p.errors) - 1 // at least one error was added
 		if !p.errorsEncounteredSince(errorsBeforeExpr) {
 			p.errors = append(p.errors, fmt.Sprintf("Failed to parse expression for let statement '%s' at line %d", stmt.Name.Value, p.currentToken.Line))
 		}
@@ -131,10 +131,10 @@ func (p *Parser) parseReturnStatement() ast.ExpressionNode {
 		}
 		return stmt
 	}
+	errorsBeforeRetExpr := len(p.errors)
 	stmt.ReturnValue = p.parseExpression(LOWEST)
 	if stmt.ReturnValue == nil {
-		errorsBeforeExpr := len(p.errors) - 1
-		if !p.errorsEncounteredSince(errorsBeforeExpr) {
+		if !p.errorsEncounteredSince(errorsBeforeRetExpr) {
 			p.errors = append(p.errors, fmt.Sprintf("Failed to parse return value expression at line %d", p.currentToken.Line))
 		}
 		p.advanceToRecoveryPoint()
