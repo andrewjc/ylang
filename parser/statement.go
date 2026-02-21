@@ -103,7 +103,8 @@ func (p *Parser) parseLetStatement() *ast.LetStatement {
 
 	stmt.Value = p.parseExpression(LOWEST)
 	if stmt.Value == nil {
-		if !p.errorsEncounteredSince(len(p.errors)) {
+		errorsBeforeExpr := len(p.errors) - 1 // at least one error was added
+		if !p.errorsEncounteredSince(errorsBeforeExpr) {
 			p.errors = append(p.errors, fmt.Sprintf("Failed to parse expression for let statement '%s' at line %d", stmt.Name.Value, p.currentToken.Line))
 		}
 		p.advanceToRecoveryPoint()
@@ -132,7 +133,8 @@ func (p *Parser) parseReturnStatement() ast.ExpressionNode {
 	}
 	stmt.ReturnValue = p.parseExpression(LOWEST)
 	if stmt.ReturnValue == nil {
-		if !p.errorsEncounteredSince(len(p.errors)) {
+		errorsBeforeExpr := len(p.errors) - 1
+		if !p.errorsEncounteredSince(errorsBeforeExpr) {
 			p.errors = append(p.errors, fmt.Sprintf("Failed to parse return value expression at line %d", p.currentToken.Line))
 		}
 		p.advanceToRecoveryPoint()
