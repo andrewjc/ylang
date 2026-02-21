@@ -79,6 +79,7 @@ func NewParser(lexer *Lexer) *Parser {
 	p.registerPrefix(TokenTypeLet, p.parseVariableDeclaration)
 	p.registerPrefix(TokenTypeLeftBrace, p.parseBlockStatement)
 	p.registerPrefix(TokenTypeSyscall, p.parseSysCallExpression)
+	p.registerPrefix(TokenTypeAssembly, p.parseAssemblyStatement)
 	p.registerPrefix(TokenTypeMinus, p.parsePrefixExpression)
 	p.registerPrefix(TokenTypeFunction, p.parseAnonymousFunctionExpression)
 	//p.registerPrefix(TokenTypeComment, p.parseCommentExpression)

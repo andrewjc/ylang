@@ -49,11 +49,13 @@ func (bm *BuiltInManager) initBuiltInFuncs(m *ir.Module) {
 	arrayMapRetType := types.NewPointer(types.I32)
 	arrayMapFunc := m.NewFunc("builtin_array_map", arrayMapRetType)
 	bm.funcs["builtin_array_map"] = arrayMapFunc
+	bm.funcs["Array_map"] = arrayMapFunc // Method lookup alias
 
 	// ForEach: Takes array ptr, callback ptr. Returns void.
 	arrayForEachRetType := types.Void
 	arrayForEachFunc := m.NewFunc("builtin_array_forEach", arrayForEachRetType)
 	bm.funcs["builtin_array_forEach"] = arrayForEachFunc
+	bm.funcs["Array_forEach"] = arrayForEachFunc // Method lookup alias
 }
 
 // generateArrayMap generates LLVM IR for array.map(callback)

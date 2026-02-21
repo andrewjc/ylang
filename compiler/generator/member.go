@@ -9,48 +9,91 @@ import (
 )
 
 func (cg *CodeGenerator) VisitIndexExpression(ie *ast.IndexExpression) error {
-	// 1. Evaluate the base pointer expression (e.g., self.data)
+	// 1. Load the variable holding the Array struct pointer
+	savedLHS := cg.inAssignmentLHS
+	cg.inAssignmentLHS = true
 	err := ie.Left.Accept(cg)
+	cg.inAssignmentLHS = savedLHS
 	if err != nil {
 		return fmt.Errorf("error evaluating base for index expression: %w", err)
 	}
-	basePtrVal := cg.lastValue // Should be a pointer type, e.g., i32*
+	allocaVal := cg.lastValue // the alloca instruction (e.g. %myArr of type %Array**)
 
-	basePtrType, ok := basePtrVal.Type().(*types.PointerType)
+	allocaPtrType, ok := allocaVal.Type().(*types.PointerType)
 	if !ok {
-		return fmt.Errorf("index expression base is not a pointer, but %T", basePtrVal.Type())
+		return fmt.Errorf("index expression base alloca is not a pointer, but %T", allocaVal.Type())
 	}
-	elemType := basePtrType.ElemType // The type of elements being pointed to, e.g., i32
+	storedType := allocaPtrType.ElemType // type stored in the alloca (e.g. %Array*)
+
+	// Determine the data pointer (i32*) from which to index elements
+	var dataPtrVal value.Value
+
+	// Case: alloca stores a pointer-to-struct (%Array**)
+	if ptrToStruct, isPtrToStruct := storedType.(*types.PointerType); isPtrToStruct {
+		if arrayStructType, isStruct := ptrToStruct.ElemType.(*types.StructType); isStruct {
+			// Load %Array** → %Array*
+			structPtr := cg.Block.NewLoad(storedType, allocaVal)
+			// GEP %Array*, field index 1 (data field) → i32**
+			dataFieldAddr := cg.Block.NewGetElementPtr(arrayStructType, structPtr,
+				constant.NewInt(types.I32, 0),
+				constant.NewInt(types.I32, 1))
+			// Load i32** → i32*
+			dataFieldType := arrayStructType.Fields[1]
+			dataPtrVal = cg.Block.NewLoad(dataFieldType, dataFieldAddr)
+		}
+	}
+
+	// Case: alloca directly stores a struct (%Array*)
+	if dataPtrVal == nil {
+		if arrayStructType, isStruct := storedType.(*types.StructType); isStruct {
+			// GEP %Array, field index 1 → i32**
+			dataFieldAddr := cg.Block.NewGetElementPtr(arrayStructType, allocaVal,
+				constant.NewInt(types.I32, 0),
+				constant.NewInt(types.I32, 1))
+			dataFieldType := arrayStructType.Fields[1]
+			dataPtrVal = cg.Block.NewLoad(dataFieldType, dataFieldAddr)
+		}
+	}
+
+	// Case: alloca stores a plain pointer (e.g. i32*)
+	if dataPtrVal == nil {
+		dataPtrVal = cg.Block.NewLoad(storedType, allocaVal)
+	}
 
 	// 2. Evaluate the index expression
 	err = ie.Index.Accept(cg)
 	if err != nil {
 		return fmt.Errorf("error evaluating index for index expression: %w", err)
 	}
-	indexVal := cg.lastValue // Should be an integer type
+	indexVal := cg.lastValue
 
-	// Ensure index is compatible type (e.g. i64 or i32, GEP usually wants i64 or i32)
-	// LLVM GEP often uses i64 or i32 indices. Let's target i64 for flexibility.
+	// Ensure index is i64 for GEP
 	var indexValI64 value.Value
 	if !indexVal.Type().Equal(types.I64) {
-		indexValI64 = cg.Block.NewSExt(indexVal, types.I64) // Or ZExt? Assume signed.
+		indexValI64 = cg.Block.NewSExt(indexVal, types.I64)
 	} else {
 		indexValI64 = indexVal
 	}
 
-	// 3. Generate GetElementPtr (GEP)
-	// gep %ElemType* %basePtrVal, i64 %indexValI64
-	elemAddr := cg.Block.NewGetElementPtr(elemType, basePtrVal, indexValI64)
+	// 3. Determine element type from dataPtrVal
+	dataPtrType, ok := dataPtrVal.Type().(*types.PointerType)
+	if !ok {
+		return fmt.Errorf("data pointer for index expression is not a pointer type: %T", dataPtrVal.Type())
+	}
+	elemType := dataPtrType.ElemType
+
+	// 4. GEP to element address
+	elemAddr := cg.Block.NewGetElementPtr(elemType, dataPtrVal, indexValI64)
 	elemAddr.SetName("elem_addr")
 
-	// 4. Handle LHS vs RHS
-	if cg.inAssignmentLHS { // e.g., array[i] = value
-		cg.lastValue = elemAddr // Return address for store
+	// 5. Handle LHS vs RHS
+	if cg.inAssignmentLHS {
+		cg.lastValue = elemAddr
 		fmt.Printf("[DEBUG] IndexExpr (LHS): GEP -> %s\n", elemAddr.Ident())
-	} else { // e.g., let x = array[i]
+	} else {
 		loadedVal := cg.Block.NewLoad(elemType, elemAddr)
 		loadedVal.SetName("elem_val")
-		cg.lastValue = loadedVal // Return loaded value
+		cg.lastValue = loadedVal
 		fmt.Printf("[DEBUG] IndexExpr (RHS): GEP -> %s, Load -> %s\n", elemAddr.Ident(), loadedVal.Ident())
 	}
 
@@ -59,7 +102,7 @@ func (cg *CodeGenerator) VisitIndexExpression(ie *ast.IndexExpression) error {
 
 // very hard coded to arrays for now, next stage is to make this more generic
 func (cg *CodeGenerator) VisitMemberAccessExpression(mae *ast.MemberAccessExpression) error {
-	// 1. Evaluate the left expression (the object/struct instance)
+	// 1. Evaluate the left expression (the object/struct instance) - get alloca
 	isLHSOuter := cg.inAssignmentLHS
 	cg.inAssignmentLHS = true
 	err := mae.Left.Accept(cg)
@@ -67,15 +110,33 @@ func (cg *CodeGenerator) VisitMemberAccessExpression(mae *ast.MemberAccessExpres
 	if err != nil {
 		return fmt.Errorf("error evaluating base for member access '%s': %w", mae.Member, err)
 	}
-	basePtrVal := cg.lastValue // Should be a pointer to a struct, e.g. %Array*
+	baseVal := cg.lastValue // Alloca or pointer value
 
-	basePtrType, ok := basePtrVal.Type().(*types.PointerType)
+	// Resolve to a pointer-to-struct (%Array*)
+	// If the alloca holds a %Array* (%Array**), load it once to get %Array*
+	var basePtrVal value.Value
+	if ptrType, ok := baseVal.Type().(*types.PointerType); ok {
+		if _, isStruct := ptrType.ElemType.(*types.StructType); isStruct {
+			// Already %Array* — use directly
+			basePtrVal = baseVal
+		} else if innerPtr, isInnerPtr := ptrType.ElemType.(*types.PointerType); isInnerPtr {
+			if _, isStruct := innerPtr.ElemType.(*types.StructType); isStruct {
+				// %Array** — load to get %Array*
+				basePtrVal = cg.Block.NewLoad(ptrType.ElemType, baseVal)
+			}
+		}
+	}
+	if basePtrVal == nil {
+		return fmt.Errorf("member access base does not resolve to a struct pointer, got %T", baseVal.Type())
+	}
+
+	structPtrType, ok := basePtrVal.Type().(*types.PointerType)
 	if !ok {
 		return fmt.Errorf("member access base is not a pointer, but %T", basePtrVal.Type())
 	}
-	structType, ok := basePtrType.ElemType.(*types.StructType)
+	structType, ok := structPtrType.ElemType.(*types.StructType)
 	if !ok {
-		return fmt.Errorf("member access base does not point to a struct, but %T", basePtrType.ElemType)
+		return fmt.Errorf("member access base does not point to a struct, but %T", structPtrType.ElemType)
 	}
 
 	// 2. Find the field index

@@ -252,8 +252,10 @@ func (p *Parser) parseDotOperator(left ast.ExpressionNode) ast.ExpressionNode {
 		Left:  left,
 	}
 
-	if !p.expectPeek(TokenTypeIdentifier) {
-		p.errors = append(p.errors, fmt.Sprintf("Expected identifier after '.', got %s at line %d", p.peekToken.Type, p.peekToken.Line))
+	// Accept any identifier-like token (including keywords used as field names)
+	p.nextToken()
+	if p.currentToken.Type == TokenTypeEOF {
+		p.errors = append(p.errors, fmt.Sprintf("Expected identifier after '.', got EOF at line %d", p.currentToken.Line))
 		return nil
 	}
 
@@ -271,8 +273,10 @@ func (p *Parser) parseMemberAccessExpression(left ast.ExpressionNode) ast.Expres
 		Left:  left,
 	}
 
-	if !p.expectPeek(TokenTypeIdentifier) {
-		p.errors = append(p.errors, fmt.Sprintf("Expected identifier after '.', got %s at line %d", p.peekToken.Type, p.peekToken.Line))
+	// Accept any identifier-like token (including keywords used as field names)
+	p.nextToken()
+	if p.currentToken.Type == TokenTypeEOF {
+		p.errors = append(p.errors, fmt.Sprintf("Expected identifier after '.', got EOF at line %d", p.currentToken.Line))
 		return nil
 	}
 

@@ -62,7 +62,7 @@ func TestIsLetterUnit(t *testing.T) {
 		{"Zero Rune", 0, false},
 		// Boundary cases - different Unicode categories that might be adjacent
 		{"Modifier Letter ʻ", 'ʻ', true},   // Modifier Letter Turned Comma (Category Lm)
-		{"Letter Number  रोमन", '௰', true}, // Tamil Number Ten (Category Nl) - Unicode considers letter numbers as letters
+		{"Letter Number  रोमन", '௰', false}, // Tamil Number Ten (Category Nl) - Go's unicode.IsLetter returns false for Nl
 		{"Other Symbol  Ohm Ω", 'Ω', true}, // Ohm Sign (Category So - Other Symbol, but often used like a letter) - unicode.IsLetter considers it true
 	}
 
