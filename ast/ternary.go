@@ -16,7 +16,7 @@ func (tte *TraditionalTernaryExpression) Accept(visitor Visitor) error {
 func (tte *TraditionalTernaryExpression) expressionNode()      {}
 func (tte *TraditionalTernaryExpression) TokenLiteral() string { return tte.Token.Literal }
 func (tte *TraditionalTernaryExpression) String() string {
-	return tte.Condition.String() + " ? " + tte.TrueExpr.String() + " : " + tte.FalseExpr.String()
+	return "(" + tte.Condition.String() + " ? " + tte.TrueExpr.String() + " : " + tte.FalseExpr.String() + ")"
 }
 
 // ArrowStyleTernaryExpression represents the arrow-style ternary expression.
@@ -34,14 +34,14 @@ func (aste *LambdaStyleTernaryExpression) Accept(visitor Visitor) error {
 func (aste *LambdaStyleTernaryExpression) expressionNode()      {}
 func (aste *LambdaStyleTernaryExpression) TokenLiteral() string { return aste.Token.Literal }
 func (aste *LambdaStyleTernaryExpression) String() string {
-	return aste.Condition.String() + " -> " + aste.TrueExpr.String() + " : " + aste.FalseExpr.String()
+	return "(" + aste.Condition.String() + " -> " + aste.TrueExpr.String() + " : " + aste.FalseExpr.String() + ")"
 }
 
 type InlineIfElseTernaryExpression struct {
 	Token     LangToken      // The 'if' token
-	Condition ExpressionNode // The condition expression
-	TrueExpr  ExpressionNode // The expression if the condition is true
-	FalseExpr ExpressionNode // The expression if the condition is false
+	Condition ExpressionNode // The condition expression (the thing being tested)
+	TrueExpr  ExpressionNode // The expression returned when condition is true (appears before 'if')
+	FalseExpr ExpressionNode // The expression returned when condition is false
 }
 
 func (iite *InlineIfElseTernaryExpression) Accept(visitor Visitor) error {
@@ -51,5 +51,5 @@ func (iite *InlineIfElseTernaryExpression) Accept(visitor Visitor) error {
 func (iite *InlineIfElseTernaryExpression) expressionNode()      {}
 func (iite *InlineIfElseTernaryExpression) TokenLiteral() string { return iite.Token.Literal }
 func (iite *InlineIfElseTernaryExpression) String() string {
-	return iite.Condition.String() + " if " + iite.TrueExpr.String() + " else " + iite.FalseExpr.String()
+	return "(" + iite.TrueExpr.String() + " if " + iite.Condition.String() + " else " + iite.FalseExpr.String() + ")"
 }

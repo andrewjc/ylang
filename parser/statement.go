@@ -41,16 +41,6 @@ func (p *Parser) parseStatement() ast.Statement {
 		}
 		p.errors = append(p.errors, fmt.Sprintf("INTERNAL ERROR: *ast.IfStatement does not satisfy ast.Statement interface near line %d", p.currentToken.Line+1))
 		return nil
-	case TokenTypeLeftBrace:
-		blockNode := p.parseBlockStatement()
-		if blockNode == nil {
-			return nil
-		}
-		if stmt, ok := blockNode.(ast.Statement); ok {
-			return stmt
-		}
-		p.errors = append(p.errors, fmt.Sprintf("INTERNAL ERROR: *ast.BlockStatement does not satisfy ast.Statement interface near line %d", p.currentToken.Line+1))
-		return nil
 	default:
 		es := p.parseExpressionStatement()
 		if es == nil {
@@ -161,12 +151,14 @@ func (p *Parser) parseExpressionStatement() *ast.ExpressionStatement {
 	if stmt.Expression == nil {
 		return nil
 	}
-	// Advance past the expression value
-	if !p.currentTokenIs(TokenTypeSemicolon) && !p.currentTokenIs(TokenTypeRightBrace) && !p.currentTokenIs(TokenTypeEOF) {
-		p.nextToken()
-	}
-	if p.currentTokenIs(TokenTypeSemicolon) {
-		p.nextToken() // advance past ';'
+	// BlockStatement prefix fn already advances past '}'; don't double-advance
+	if _, isBlock := stmt.Expression.(*ast.BlockStatement); !isBlock {
+		if !p.currentTokenIs(TokenTypeSemicolon) && !p.currentTokenIs(TokenTypeRightBrace) && !p.currentTokenIs(TokenTypeEOF) {
+			p.nextToken()
+		}
+		if p.currentTokenIs(TokenTypeSemicolon) {
+			p.nextToken() // advance past ';'
+		}
 	}
 	return stmt
 }

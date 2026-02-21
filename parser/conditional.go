@@ -32,21 +32,19 @@ func (p *Parser) parseIfStatement() ast.ExpressionNode {
 		return nil
 	}
 	ifStmt.Consequence = consequenceNode
-	p.nextToken()
+	// After parseBlockStatement(), current is the token AFTER the closing '}'
 
-	if p.peekTokenIs(TokenTypeElse) {
-		p.nextToken()                   // consume 'else'
+	if p.currentTokenIs(TokenTypeElse) {
 		if p.peekTokenIs(TokenTypeIf) { // else if
-			p.nextToken() // consume 'if'
+			p.nextToken()                       // advance to 'if'
 			ifStmt.Alternative = p.parseIfStatement()
 		} else if p.peekTokenIs(TokenTypeLeftBrace) { // else { ... }
-			p.nextToken() // consume '{'
+			p.nextToken() // advance to '{'
 			altNode := p.parseBlockStatement()
 			if altNode == nil {
 				return nil
 			}
 			ifStmt.Alternative = altNode
-			p.nextToken() // Consume '}'
 		} else {
 			p.errors = append(p.errors, fmt.Sprintf("Expected 'if' or '{' after 'else', got %s at line %d", p.peekToken.Type, p.peekToken.Line))
 			return nil
@@ -58,18 +56,14 @@ func (p *Parser) parseIfStatement() ast.ExpressionNode {
 
 func (p *Parser) parseTraditionalTernaryExpression(condition ast.ExpressionNode) ast.ExpressionNode {
 	ternaryExp := &ast.TraditionalTernaryExpression{
-		Token:     p.currentToken,
+		Token:     p.currentToken, // '?' token (already current when called as infix fn)
 		Condition: condition,
 	}
 
-	if !p.expectPeek(TokenTypeQuestionMark) {
-		return nil
-	}
-
-	p.nextToken()
+	p.nextToken() // advance past '?'
 	ternaryExp.TrueExpr = p.parseExpression(TERNARY)
 
-	if !p.expectPeek(TokenTypeSemicolon) {
+	if !p.expectPeek(TokenTypeColon) {
 		return nil
 	}
 
@@ -81,16 +75,11 @@ func (p *Parser) parseTraditionalTernaryExpression(condition ast.ExpressionNode)
 
 func (p *Parser) parseLambdaStyleTernaryExpression(condition ast.ExpressionNode) ast.ExpressionNode {
 	ternaryExp := &ast.LambdaStyleTernaryExpression{
-		Token:     p.currentToken,
+		Token:     p.currentToken, // '->' token (already current when called as infix fn)
 		Condition: condition,
 	}
 
-	if !p.expectPeek(TokenTypeLambdaArrow) {
-		fmt.Println("Expected lambda arrow")
-		return nil
-	}
-
-	p.nextToken()
+	p.nextToken() // advance past '->'
 	ternaryExp.TrueExpr = p.parseExpression(TERNARY)
 
 	if !p.expectPeek(TokenTypeColon) {
@@ -104,27 +93,14 @@ func (p *Parser) parseLambdaStyleTernaryExpression(condition ast.ExpressionNode)
 	return ternaryExp
 }
 
-func (p *Parser) parseInlineIfElseTernaryExpression(condition ast.ExpressionNode) ast.ExpressionNode {
+func (p *Parser) parseInlineIfElseTernaryExpression(trueExpr ast.ExpressionNode) ast.ExpressionNode {
 	ternaryExp := &ast.InlineIfElseTernaryExpression{
-		Token:     p.currentToken,
-		Condition: condition,
+		Token:    p.currentToken, // 'if' token (already current when called as infix fn)
+		TrueExpr: trueExpr,       // left-hand expr is what's returned when condition is true
 	}
 
-	if !p.expectPeek(TokenTypeIf) {
-		fmt.Println("Expected 'if'")
-		return nil
-	}
-
-	p.nextToken()
-	ternaryExp.Condition = p.parseExpression(LOWEST)
-
-	if !p.expectPeek(TokenTypeThen) {
-		fmt.Println("Expected 'then'")
-		return nil
-	}
-
-	p.nextToken()
-	ternaryExp.TrueExpr = p.parseExpression(TERNARY)
+	p.nextToken() // advance past 'if' to the condition
+	ternaryExp.Condition = p.parseExpression(TERNARY)
 
 	if !p.expectPeek(TokenTypeElse) {
 		fmt.Println("Expected 'else'")
