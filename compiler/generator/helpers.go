@@ -40,9 +40,9 @@ func (cg *CodeGenerator) ternaryLike(cond, trueExpr, falseExpr ast.ExpressionNod
 	condVal := cg.lastValue
 	iCmp := cg.Block.NewICmp(enum.IPredNE, condVal, constant.NewInt(types.I32, 0))
 
-	thenBlock := cg.currentFunc.NewBlock("ternary_then")
-	elseBlock := cg.currentFunc.NewBlock("ternary_else")
-	mergeBlock := cg.currentFunc.NewBlock("ternary_merge")
+	thenBlock := cg.newBlock("ternary_then")
+	elseBlock := cg.newBlock("ternary_else")
+	mergeBlock := cg.newBlock("ternary_merge")
 
 	cg.Block.NewCondBr(iCmp, thenBlock, elseBlock)
 

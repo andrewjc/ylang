@@ -31,23 +31,19 @@ func makeSyscallInlineAsm(argTypes ...types.Type) *ir.InlineAsm {
 	return asm
 }
 
-// coerceToI64 zero-extends or ptr-to-ints a value to i64 so it can be used as
-// a syscall operand.
+// coerceToI64 sign-extends or ptr-to-ints a value to i64 so it can be used
+// as a syscall register operand.  Sign-extension is used for integer types so
+// that negative values like AT_FDCWD (-100) are preserved correctly.
 func coerceToI64(block *ir.Block, v value.Value) value.Value {
-	switch v.Type() {
-	case types.I64:
-		return v
-	case types.I32:
-		return block.NewZExt(v, types.I64)
-	case types.I16:
-		return block.NewZExt(v, types.I64)
-	case types.I8:
-		return block.NewZExt(v, types.I64)
-	default:
-		// Pointer types and anything else → ptrtoint to i64
-		if _, ok := v.Type().(*types.PointerType); ok {
-			return block.NewPtrToInt(v, types.I64)
+	switch t := v.Type().(type) {
+	case *types.IntType:
+		if t.BitSize == 64 {
+			return v
 		}
+		return block.NewSExt(v, types.I64)
+	case *types.PointerType:
+		return block.NewPtrToInt(v, types.I64)
+	default:
 		return v
 	}
 }

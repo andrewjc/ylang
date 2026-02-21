@@ -47,28 +47,6 @@ func (cg *CodeGenerator) VisitAssemblyExpression(ae *ast.AssemblyExpression) err
 			return fmt.Errorf("builtin function 'builtin_print_newline' not declared")
 		}
 
-	case "builtin_print_str":
-		if fn, ok := cg.Functions["builtin_print_str"]; ok {
-			if len(args) != 1 {
-				return fmt.Errorf("asm 'builtin_print_str' expects 1 argument, got %d", len(args))
-			}
-			cg.Block.NewCall(fn, args...)
-			cg.lastValue = nil
-			return nil
-		}
-		return fmt.Errorf("builtin function 'builtin_print_str' not declared")
-
-	case "builtin_list_cwd":
-		if fn, ok := cg.Functions["builtin_list_cwd"]; ok {
-			if len(args) != 0 {
-				return fmt.Errorf("asm 'builtin_list_cwd' expects 0 arguments, got %d", len(args))
-			}
-			cg.Block.NewCall(fn)
-			cg.lastValue = nil
-			return nil
-		}
-		return fmt.Errorf("builtin function 'builtin_list_cwd' not declared")
-
 	case "builtin_map":
 		fmt.Println("[WARN] asm 'builtin_map' not fully implemented")
 		cg.lastValue = constant.NewNull(types.NewPointer(types.I32))

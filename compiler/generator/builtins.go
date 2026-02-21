@@ -45,16 +45,6 @@ func (bm *BuiltInManager) initBuiltInFuncs(m *ir.Module) {
 	printNewlineEntry.NewRet(nil) // Return void
 	bm.funcs["builtin_print_newline"] = printNewlineFunc
 
-	// --- Builtin: builtin_print_str(i8* cstr) -> void ---
-	// Declared only (no body); linked from the C runtime.
-	printStrFunc := m.NewFunc("builtin_print_str", types.Void, ir.NewParam("cstr", types.NewPointer(types.I8)))
-	bm.funcs["builtin_print_str"] = printStrFunc
-
-	// --- Builtin: builtin_list_cwd() -> void ---
-	// Declared only (no body); linked from the C runtime.
-	listCwdFunc := m.NewFunc("builtin_list_cwd", types.Void)
-	bm.funcs["builtin_list_cwd"] = listCwdFunc
-
 	// --- Array builtins just placeholders for now ---
 	arrayMapRetType := types.NewPointer(types.I32)
 	arrayMapFunc := m.NewFunc("builtin_array_map", arrayMapRetType)
@@ -108,9 +98,9 @@ func (cg *CodeGenerator) generateArrayMap(objPtrVal value.Value, arrayType *type
 	indexAlloca.SetName("map_idx")
 	cg.Block.NewStore(constant.NewInt(types.I64, 0), indexAlloca)
 
-	loopCondBlock := cg.currentFunc.NewBlock("map_loop_cond")
-	loopBodyBlock := cg.currentFunc.NewBlock("map_loop_body")
-	loopEndBlock := cg.currentFunc.NewBlock("map_loop_end")
+	loopCondBlock := cg.newBlock("map_loop_cond")
+	loopBodyBlock := cg.newBlock("map_loop_body")
+	loopEndBlock := cg.newBlock("map_loop_end")
 
 	cg.Block.NewBr(loopCondBlock) // Jump to condition check first
 
@@ -200,9 +190,9 @@ func (cg *CodeGenerator) generateArrayForEach(objPtrVal value.Value, arrayType *
 	indexAlloca.SetName("fe_idx")
 	cg.Block.NewStore(constant.NewInt(types.I64, 0), indexAlloca)
 
-	loopCondBlock := cg.currentFunc.NewBlock("fe_loop_cond")
-	loopBodyBlock := cg.currentFunc.NewBlock("fe_loop_body")
-	loopEndBlock := cg.currentFunc.NewBlock("fe_loop_end")
+	loopCondBlock := cg.newBlock("fe_loop_cond")
+	loopBodyBlock := cg.newBlock("fe_loop_body")
+	loopEndBlock := cg.newBlock("fe_loop_end")
 
 	cg.Block.NewBr(loopCondBlock)
 

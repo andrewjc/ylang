@@ -55,9 +55,25 @@ func (cg *CodeGenerator) VisitIndexExpression(ie *ast.IndexExpression) error {
 		}
 	}
 
-	// Case: alloca stores a plain pointer (e.g. i32*)
+	// Case: alloca stores a plain pointer (e.g. i8*, i32*) or an integer
+	// treated as a memory address (e.g. i64 from an mmap syscall return).
 	if dataPtrVal == nil {
-		dataPtrVal = cg.Block.NewLoad(storedType, allocaVal)
+		loadedVal := cg.Block.NewLoad(storedType, allocaVal)
+		if _, isPtr := loadedVal.Type().(*types.PointerType); isPtr {
+			// Already a pointer — use directly.
+			dataPtrVal = loadedVal
+		} else if _, isInt := loadedVal.Type().(*types.IntType); isInt {
+			// Integer value (e.g. i64 from an mmap syscall return, or i32 holding
+			// a small offset). Zero-extend to i64 (preserving the bit pattern
+			// of unsigned addresses) then reinterpret as i8*.
+			var i64Val value.Value = loadedVal
+			if !loadedVal.Type().Equal(types.I64) {
+				i64Val = cg.Block.NewZExt(loadedVal, types.I64)
+			}
+			dataPtrVal = cg.Block.NewIntToPtr(i64Val, types.NewPointer(types.I8))
+		} else {
+			dataPtrVal = loadedVal
+		}
 	}
 
 	// 2. Evaluate the index expression
@@ -82,9 +98,11 @@ func (cg *CodeGenerator) VisitIndexExpression(ie *ast.IndexExpression) error {
 	}
 	elemType := dataPtrType.ElemType
 
-	// 4. GEP to element address
+	// 4. GEP to element address, using unique debug names only when the
+	//    preferred name is not yet taken (avoids duplicate-value errors for
+	//    functions that contain several index expressions).
 	elemAddr := cg.Block.NewGetElementPtr(elemType, dataPtrVal, indexValI64)
-	elemAddr.SetName("elem_addr")
+	cg.trySetName(elemAddr, "elem_addr")
 
 	// 5. Handle LHS vs RHS
 	if cg.inAssignmentLHS {
@@ -92,7 +110,7 @@ func (cg *CodeGenerator) VisitIndexExpression(ie *ast.IndexExpression) error {
 		fmt.Printf("[DEBUG] IndexExpr (LHS): GEP -> %s\n", elemAddr.Ident())
 	} else {
 		loadedVal := cg.Block.NewLoad(elemType, elemAddr)
-		loadedVal.SetName("elem_val")
+		cg.trySetName(loadedVal, "elem_val")
 		cg.lastValue = loadedVal
 		fmt.Printf("[DEBUG] IndexExpr (RHS): GEP -> %s, Load -> %s\n", elemAddr.Ident(), loadedVal.Ident())
 	}

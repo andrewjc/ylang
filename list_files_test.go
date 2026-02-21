@@ -13,34 +13,12 @@ import (
 	p "compiler/parser"
 )
 
-// listFilesCRuntime is the C runtime that provides the external builtin implementations
-// needed by the compiled y-lang list-files program.
-const listFilesCRuntime = `
-#include <stdio.h>
-#include <dirent.h>
-#include <string.h>
-
-void builtin_print_str(const char* str) {
-    printf("%s\n", str);
-}
-
-void builtin_list_cwd(void) {
-    DIR *dir = opendir(".");
-    if (dir == NULL) return;
-    struct dirent *entry;
-    while ((entry = readdir(dir)) != NULL) {
-        if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) {
-            continue;
-        }
-        printf("%s\n", entry->d_name);
-    }
-    closedir(dir);
-}
-`
-
 // TestListFilesProgram specifies a y-lang program that lists all files in the
 // working directory, compiles and runs it, then verifies the output matches
 // the actual directory contents.
+//
+// The program is implemented entirely in Y-lang using Linux syscalls — no
+// external C runtime or stubs are required.
 func TestListFilesProgram(t *testing.T) {
 	input := `
 	import "stdlib/fs";
@@ -77,7 +55,7 @@ func TestListFilesProgram(t *testing.T) {
 	}
 	t.Logf("Generated LLVM IR:\n%s", result.Output)
 
-	// 4. Write the IR and C runtime to a temporary directory.
+	// 4. Write the IR to a temporary directory.
 	tmpDir := t.TempDir()
 
 	irFile := filepath.Join(tmpDir, "listfiles.ll")
@@ -85,14 +63,11 @@ func TestListFilesProgram(t *testing.T) {
 		t.Fatalf("Failed to write IR file: %v", err)
 	}
 
-	runtimeFile := filepath.Join(tmpDir, "runtime.c")
-	if err := os.WriteFile(runtimeFile, []byte(listFilesCRuntime), 0o644); err != nil {
-		t.Fatalf("Failed to write C runtime file: %v", err)
-	}
-
-	// 5. Compile IR + runtime with clang into an executable.
+	// 5. Compile IR with clang into an executable.
+	//    No C runtime file is needed — the program is fully self-contained
+	//    (all I/O goes through inline-asm syscall instructions).
 	exeFile := filepath.Join(tmpDir, "listfiles")
-	clangCmd := exec.Command("clang", irFile, runtimeFile, "-o", exeFile)
+	clangCmd := exec.Command("clang", irFile, "-o", exeFile)
 	if out, err := clangCmd.CombinedOutput(); err != nil {
 		t.Fatalf("clang compilation failed: %v\nOutput:\n%s", err, string(out))
 	}
@@ -137,3 +112,4 @@ func TestListFilesProgram(t *testing.T) {
 		}
 	}
 }
+
