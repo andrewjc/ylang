@@ -41,6 +41,12 @@ func (p *Parser) parseStatement() ast.Statement {
 		}
 		p.errors = append(p.errors, fmt.Sprintf("INTERNAL ERROR: *ast.IfStatement does not satisfy ast.Statement interface near line %d", p.currentToken.Line+1))
 		return nil
+	case TokenTypeWhile:
+		wsNode := p.parseWhileStatement()
+		if wsNode == nil {
+			return nil
+		}
+		return wsNode
 	default:
 		es := p.parseExpressionStatement()
 		if es == nil {

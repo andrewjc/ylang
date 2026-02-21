@@ -20,6 +20,7 @@ type Visitor interface {
 	VisitIndexExpression(ie *IndexExpression) error
 	VisitVariableDeclaration(vd *VariableDeclaration) error
 	VisitIfStatement(is *IfStatement) error
+	VisitWhileStatement(ws *WhileStatement) error
 	VisitTraditionalTernaryExpression(te *TraditionalTernaryExpression) error
 	VisitLambdaStyleTernaryExpression(aste *LambdaStyleTernaryExpression) error
 	VisitInlineIfElseTernaryExpression(iite *InlineIfElseTernaryExpression) error
