@@ -45,6 +45,16 @@ func (bm *BuiltInManager) initBuiltInFuncs(m *ir.Module) {
 	printNewlineEntry.NewRet(nil) // Return void
 	bm.funcs["builtin_print_newline"] = printNewlineFunc
 
+	// --- Builtin: builtin_print_str(i8* cstr) -> void ---
+	// Declared only (no body); linked from the C runtime.
+	printStrFunc := m.NewFunc("builtin_print_str", types.Void, ir.NewParam("cstr", types.NewPointer(types.I8)))
+	bm.funcs["builtin_print_str"] = printStrFunc
+
+	// --- Builtin: builtin_list_cwd() -> void ---
+	// Declared only (no body); linked from the C runtime.
+	listCwdFunc := m.NewFunc("builtin_list_cwd", types.Void)
+	bm.funcs["builtin_list_cwd"] = listCwdFunc
+
 	// --- Array builtins just placeholders for now ---
 	arrayMapRetType := types.NewPointer(types.I32)
 	arrayMapFunc := m.NewFunc("builtin_array_map", arrayMapRetType)
