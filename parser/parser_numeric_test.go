@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"compiler/ast"
 	"compiler/lexer"
 	"testing"
 )
@@ -15,11 +16,24 @@ func TestVariableDeclarationNumberLiteral(t *testing.T) {
 		t.Fatalf("ParseProgram() returned nil")
 	}
 
-	if len(program.ClassDeclarations) != 1 {
-		t.Fatalf("program.ClassDeclarations does not contain 1 statement. got=%d", len(program.ClassDeclarations))
+	if program.MainFunction == nil {
+		t.Fatalf("ParseProgram() returned nil MainFunction")
 	}
 
-	stmt := program.ClassDeclarations[0]
+	body, ok := program.MainFunction.Body.(*ast.BlockStatement)
+	if !ok {
+		t.Fatalf("MainFunction.Body is not a BlockStatement")
+	}
+
+	if len(body.Statements) != 1 {
+		t.Fatalf("body.Statements does not contain 1 statement. got=%d", len(body.Statements))
+	}
+
+	stmt, ok := body.Statements[0].(*ast.LetStatement)
+	if !ok {
+		t.Fatalf("body.Statements[0] is not *ast.LetStatement. got=%T", body.Statements[0])
+	}
+
 	if stmt.TokenLiteral() != "let" {
 		t.Fatalf("stmt.TokenLiteral not 'let'. got=%q", stmt.TokenLiteral())
 	}

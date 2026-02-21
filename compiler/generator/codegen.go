@@ -32,7 +32,7 @@ func NewCodeGenerator() *CodeGenerator {
 	mm := module.NewModuleManager()
 	builtInManager := NewBuiltInManager(m)
 
-	return &CodeGenerator{
+	cg := &CodeGenerator{
 		ModuleManager: mm,
 		Module:        m,
 		Functions:     builtInManager.GetProvidedFunctionsMap(),
@@ -42,6 +42,15 @@ func NewCodeGenerator() *CodeGenerator {
 		currentFunc:   nil,
 		lastValue:     nil,
 	}
+
+	// Pre-define the Array struct type used by array operations
+	llvmIntType := types.I32
+	llvmIntPtrType := types.NewPointer(types.I32)
+	arrayStructType := types.NewStruct(llvmIntType, llvmIntPtrType)
+	m.NewTypeDef("Array", arrayStructType)
+	cg.Structs["Array"] = arrayStructType
+
+	return cg
 }
 
 func (cg *CodeGenerator) VisitVariableDeclaration(vd *ast.VariableDeclaration) error {

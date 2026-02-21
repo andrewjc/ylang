@@ -9,7 +9,15 @@ import (
 // Ensure mapType can handle pointers and basic types including void.
 // Needs to look up defined struct types from cg.Structs.
 func (cg *CodeGenerator) mapType(typeName string) (types.Type, error) {
-	// Handle pointer types
+	// Handle pointer types: both prefix '*int' and suffix 'int*' notations
+	if strings.HasPrefix(typeName, "*") {
+		baseTypeName := strings.TrimPrefix(typeName, "*")
+		baseType, err := cg.mapType(baseTypeName)
+		if err != nil {
+			return nil, fmt.Errorf("unknown base type '%s' for pointer type '%s'", baseTypeName, typeName)
+		}
+		return types.NewPointer(baseType), nil
+	}
 	if strings.HasSuffix(typeName, "*") {
 		baseTypeName := strings.TrimSuffix(typeName, "*")
 		baseType, err := cg.mapType(baseTypeName) // Recursive call

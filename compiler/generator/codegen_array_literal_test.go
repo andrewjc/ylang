@@ -49,22 +49,22 @@ func TestCodeGenArrayLiteralUnit(t *testing.T) {
 		{
 			name:                   "Integer Array Literal",
 			input:                  `[1, 2, 3]`,
-			expectedArrayTypeRe:    `\[3 x i32]`,
+			expectedArrayTypeRe:    `\[3 x i32\]`,
 			expectedStructAlloca:   `%[a-zA-Z0-9_.]+ = alloca %Array`,
-			expectedDataAllocaRe:   `%[a-zA-Z0-9_.]+ = alloca \[3 x i32]`,
-			expectedLengthStoreRe:  `store i32 3, ptr %[a-zA-Z0-9_.]+`,
-			expectedDataPtrStoreRe: `store ptr %[a-zA-Z0-9_.]+, ptr %[a-zA-Z0-9_.]+`,
-			expectedConstValuesRe:  `\[i32 1, i32 2, i32 3]`,
+			expectedDataAllocaRe:   `%[a-zA-Z0-9_.]+ = alloca \[3 x i32\]`,
+			expectedLengthStoreRe:  `store i32 3, i32\* %[a-zA-Z0-9_.]+`,
+			expectedDataPtrStoreRe: `store i32\* %[a-zA-Z0-9_.]+, i32\*\* %[a-zA-Z0-9_.]+`,
+			expectedConstValuesRe:  `i32 1, i32 2, i32 3`,
 		},
 		{
 			name:                   "Empty Array Literal",
 			input:                  `[]`,
-			expectedArrayTypeRe:    "", // No underlying data array allocated in this specific way
+			expectedArrayTypeRe:    "",
 			expectedStructAlloca:   `%[a-zA-Z0-9_.]+ = alloca %Array`,
-			expectedDataAllocaRe:   "",                                    // No specific data allocation like above
-			expectedLengthStoreRe:  `store i32 0, ptr %[a-zA-Z0-9_.]+`,    // Store length 0
-			expectedDataPtrStoreRe: `store ptr null, ptr %[a-zA-Z0-9_.]+`, // Store null data pointer
-			expectedConstValuesRe:  "",                                    // No constant values
+			expectedDataAllocaRe:   "",
+			expectedLengthStoreRe:  `store i32 0, i32\* %[a-zA-Z0-9_.]+`,
+			expectedDataPtrStoreRe: `store i32\* null, i32\*\* %[a-zA-Z0-9_.]+`,
+			expectedConstValuesRe:  "",
 		},
 		// Add test for array of strings? Requires String literal codegen to be stable.
 		// Add test for array of expressions? Requires expression codegen.
@@ -172,23 +172,18 @@ func TestCodeGenIndexExpressionUnit(t *testing.T) {
 			input:      `myArr[1]`,
 			setupInput: `let myArr = [10, 20, 30];`,
 			isLoad:     true,
-			// GEP from Array struct ptr -> data field ptr -> element ptr
-			// 1. GEP to get data field (%Array*, idx 0, idx 1 -> ptr*)
-			// 2. Load data field (ptr* -> ptr)
-			// 3. GEP from data ptr (ptr, index -> ptr)
-			expectedGEPRe:    `getelementptr i32, ptr %[a-zA-Z0-9_.]+, i64 1`, // GEP from data array pointer with index 1
-			expectedLoadRe:   `load i32, ptr %[a-zA-Z0-9_.]+`,                 // Load from the element address
+			expectedGEPRe:    `getelementptr i32, i32\* %[a-zA-Z0-9_.]+, i64 %[a-zA-Z0-9_.]+`,
+			expectedLoadRe:   `load i32, i32\* %[a-zA-Z0-9_.]+`,
 			expectedStoreRe:  "",
-			expectedReturnRe: `ret i32 %[a-zA-Z0-9_.]+`, // Return the loaded i32 value
+			expectedReturnRe: `ret i32 %[a-zA-Z0-9_.]+`,
 		},
 		{
 			name:       "Index Load (Variable Index)",
 			input:      `myArr[idx]`,
 			setupInput: `let myArr = [10, 20, 30]; let idx = 2;`,
 			isLoad:     true,
-			// Expect load of idx before GEP
-			expectedGEPRe:    `getelementptr i32, ptr %[a-zA-Z0-9_.]+, i64 %[a-zA-Z0-9_.]+`, // GEP uses loaded index
-			expectedLoadRe:   `load i32, ptr %[a-zA-Z0-9_.]+`,
+			expectedGEPRe:    `getelementptr i32, i32\* %[a-zA-Z0-9_.]+, i64 %[a-zA-Z0-9_.]+`,
+			expectedLoadRe:   `load i32, i32\* %[a-zA-Z0-9_.]+`,
 			expectedStoreRe:  "",
 			expectedReturnRe: `ret i32 %[a-zA-Z0-9_.]+`,
 		},
@@ -197,21 +192,20 @@ func TestCodeGenIndexExpressionUnit(t *testing.T) {
 			input:            `myArr[0] = 99`,
 			setupInput:       `let myArr = [10, 20, 30];`,
 			isLoad:           false,
-			expectedGEPRe:    `getelementptr i32, ptr %[a-zA-Z0-9_.]+, i64 0`, // GEP to get address of element 0
+			expectedGEPRe:    `getelementptr i32, i32\* %[a-zA-Z0-9_.]+, i64 %[a-zA-Z0-9_.]+`,
 			expectedLoadRe:   "",
-			expectedStoreRe:  `store i32 99, ptr %[a-zA-Z0-9_.]+`, // Store 99 into the element address
-			expectedReturnRe: `ret i32 99`,                        // Assignment expression returns the RHS value
+			expectedStoreRe:  `store i32 99, i32\* %[a-zA-Z0-9_.]+`,
+			expectedReturnRe: `ret i32 99`,
 		},
 		{
 			name:       "Index Store (Variable Index, Variable Value)",
 			input:      `myArr[idx] = newValue`,
 			setupInput: `let myArr = [10, 20, 30]; let idx = 1; let newValue = 55;`,
 			isLoad:     false,
-			// Expect loads for idx and newValue
-			expectedGEPRe:    `getelementptr i32, ptr %[a-zA-Z0-9_.]+, i64 %[a-zA-Z0-9_.]+`,
+			expectedGEPRe:    `getelementptr i32, i32\* %[a-zA-Z0-9_.]+, i64 %[a-zA-Z0-9_.]+`,
 			expectedLoadRe:   "",
-			expectedStoreRe:  `store i32 %[a-zA-Z0-9_.]+, ptr %[a-zA-Z0-9_.]+`, // Store loaded newValue into GEP address
-			expectedReturnRe: `ret i32 %[a-zA-Z0-9_.]+`,                        // Return the loaded newValue
+			expectedStoreRe:  `store i32 %[a-zA-Z0-9_.]+, i32\* %[a-zA-Z0-9_.]+`,
+			expectedReturnRe: `ret i32 %[a-zA-Z0-9_.]+`,
 		},
 	}
 

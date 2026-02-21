@@ -54,6 +54,8 @@ type Parser struct {
 	peekToken    LangToken
 	peekToken2   LangToken
 	peekToken3   LangToken
+	peekToken4   LangToken
+	peekToken5   LangToken
 	peekTokenErr error
 
 	prefixParseFns map[TokenType]prefixParseFn
@@ -77,6 +79,9 @@ func NewParser(lexer *Lexer) *Parser {
 	p.registerPrefix(TokenTypeLet, p.parseVariableDeclaration)
 	p.registerPrefix(TokenTypeLeftBrace, p.parseBlockStatement)
 	p.registerPrefix(TokenTypeSyscall, p.parseSysCallExpression)
+	p.registerPrefix(TokenTypeAssembly, p.parseAssemblyStatement)
+	p.registerPrefix(TokenTypeMinus, p.parsePrefixExpression)
+	p.registerPrefix(TokenTypeFunction, p.parseAnonymousFunctionExpression)
 	//p.registerPrefix(TokenTypeComment, p.parseCommentExpression)
 	//p.registerPrefix(TokenTypeImport, p.parseImportStatement)
 
@@ -99,7 +104,9 @@ func NewParser(lexer *Lexer) *Parser {
 	p.registerInfix(TokenTypeLambdaArrow, p.parseLambdaStyleTernaryExpression)
 	p.registerInfix(TokenTypeIf, p.parseInlineIfElseTernaryExpression)
 
-	// Read two tokens, so currentToken and peekToken are both set
+	// Read tokens to fill current and all peek buffers
+	p.nextToken()
+	p.nextToken()
 	p.nextToken()
 	p.nextToken()
 	p.nextToken()

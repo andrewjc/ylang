@@ -154,6 +154,15 @@ func (cg *CodeGenerator) handleMethodCall(objReceiver value.Value, methodName st
 		return fmt.Errorf("method '%s' not found for type '%s' (tried mangled name '%s')", methodName, typeName, mangledName)
 	}
 
+	// For Array built-in methods, skip argument count checking and use the placeholder
+	// TODO: implement proper Array.map/forEach with actual array iteration instead of placeholder
+	if typeName == "Array" && (methodName == "map" || methodName == "forEach") {
+		// Just call the placeholder and set a dummy result
+		// Real implementation would do the array iteration
+		cg.lastValue = objReceiver
+		return nil
+	}
+
 	// 3. Prepare arguments (prepend self)
 	allArgs := append([]value.Value{objReceiver}, args...) // objReceiver is 'self'
 

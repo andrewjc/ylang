@@ -44,10 +44,26 @@ func (fd *FunctionDefinition) StringIndent(indent int) string {
 	}
 	out.WriteString("(" + strings.Join(params, ", ") + ") -> ")
 
-	// if the body is a block, then insert a newline and indent it
+	// if the body is a block, render single-statement blocks inline
 	if block, ok := fd.Body.(*BlockStatement); ok {
-		out.WriteString("\n")
-		out.WriteString(block.StringIndent(indent))
+		if len(block.Statements) == 1 {
+			stmtStr := block.Statements[0].String()
+			if !strings.HasSuffix(stmtStr, ";") && !strings.HasSuffix(stmtStr, "}") {
+				stmtStr += ";"
+			}
+			out.WriteString(stmtStr)
+		} else {
+			// Multi-statement block: render inline with braces
+			var stmts []string
+			for _, s := range block.Statements {
+				stmtStr := s.String()
+				if !strings.HasSuffix(stmtStr, ";") && !strings.HasSuffix(stmtStr, "}") {
+					stmtStr += ";"
+				}
+				stmts = append(stmts, stmtStr)
+			}
+			out.WriteString("{" + strings.Join(stmts, " ") + "}")
+		}
 	} else if fd.Body != nil {
 		out.WriteString(fd.Body.String())
 	}

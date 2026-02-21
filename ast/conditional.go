@@ -46,14 +46,7 @@ func (is *IfStatement) StringIndent(indent int) string {
 	}
 
 	if is.Alternative != nil {
-		// Add newline and indent before 'else' if consequence was a block
-		_, consIsBlock := is.Consequence.(*BlockStatement)
-		if consIsBlock {
-			out.WriteString("\n" + indentStr)
-		} else {
-			out.WriteString(" ") // Space if consequence was single line
-		}
-		out.WriteString("else ")
+		out.WriteString(" else ")
 
 		// Handle alternative formatting
 		if elseIf, ok := is.Alternative.(*IfStatement); ok {

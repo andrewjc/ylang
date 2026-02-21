@@ -29,7 +29,7 @@ func TestConditionalParsingIntegration(t *testing.T) {
 			name:           "If/Else Statement",
 			input:          `main() -> { if (x < 0) { return -1; } else { return 1; } }`,
 			expectedCond:   "(x < 0)",
-			expectedCons:   "{\n    return -1;\n}", // Assuming prefix '-' is handled eventually
+			expectedCons:   "{\n    return (-1);\n}",
 			expectedAlt:    "{\n    return 1;\n}",
 			expectedErrors: 0,
 			isAltElseIf:    false,
@@ -48,11 +48,7 @@ func TestConditionalParsingIntegration(t *testing.T) {
 			expectedCond: "(x == 0)", // Needs == operator support
 			expectedCons: "{\n    print(\"zero\");\n}",
 			// The Alternative *is* another IfStatement node
-			expectedAlt: `if (x > 0) {
-        print("positive");
-    } else {
-        print("negative");
-    }`, // String of the nested IfStatement
+			expectedAlt: "if (x > 0) {\n    print(\"positive\");\n} else {\n    print(\"negative\");\n}", // String of the nested IfStatement
 			expectedErrors: 0,
 			isAltElseIf:    true,
 		},
@@ -98,7 +94,7 @@ func TestConditionalParsingIntegration(t *testing.T) {
             }`,
 			expectedCond:   "a",
 			expectedCons:   "{\n    if b {\n        return 1;\n    } else {\n        return 0;\n    }\n}", // String representation of nested if
-			expectedAlt:    "{\n    return -1;\n}",
+			expectedAlt:    "{\n    return (-1);\n}",
 			expectedErrors: 0,
 			isAltElseIf:    false,
 		},

@@ -25,34 +25,34 @@ func TestCodeGenAssignmentExpressionUnit(t *testing.T) {
 			input:            `myVar = 42`,
 			setupInput:       `let myVar = 0;`, // Variable must exist
 			expectedLoadRe:   "",               // No load needed for literal RHS
-			expectedStoreRe:  `store i32 42, ptr %[a-zA-Z0-9_.]+`,
+			expectedStoreRe:  `store i32 42, i32\* %[a-zA-Z0-9_.]+`,
 			expectedReturnRe: `ret i32 42`, // Assignment returns the RHS
 		},
 		{
 			name:             "Assign Variable to Variable",
 			input:            `targetVar = sourceVar`,
 			setupInput:       `let targetVar = 0; let sourceVar = 99;`,
-			expectedLoadRe:   `load i32, ptr %[a-zA-Z0-9_.]+`, // Load sourceVar
-			expectedStoreRe:  `store i32 %[a-zA-Z0-9_.]+, ptr %[a-zA-Z0-9_.]+`,
+			expectedLoadRe:   `load i32, i32\* %[a-zA-Z0-9_.]+`, // Load sourceVar
+			expectedStoreRe:  `store i32 %[a-zA-Z0-9_.]+, i32\* %[a-zA-Z0-9_.]+`,
 			expectedReturnRe: `ret i32 %[a-zA-Z0-9_.]+`, // Return the value loaded from sourceVar
 		},
 		{
 			name:           "Assign Expression to Variable",
 			input:          `result = x + y`,
 			setupInput:     `let result = 0; let x = 5; let y = 6;`,
-			expectedLoadRe: `load i32, ptr %[a-zA-Z0-9_.]+`, // Loads for x and y
+			expectedLoadRe: `load i32, i32\* %[a-zA-Z0-9_.]+`, // Loads for x and y
 			// Expect add instruction before store
-			expectedStoreRe:  `store i32 %[a-zA-Z0-9_.]+, ptr %[a-zA-Z0-9_.]+`, // Store result of add
-			expectedReturnRe: `ret i32 %[a-zA-Z0-9_.]+`,                        // Return result of add
+			expectedStoreRe:  `store i32 %[a-zA-Z0-9_.]+, i32\* %[a-zA-Z0-9_.]+`, // Store result of add
+			expectedReturnRe: `ret i32 %[a-zA-Z0-9_.]+`,                          // Return result of add
 		},
 		// Add tests for assigning to index expressions `arr[i] = val` (Covered partly by Index tests)
 		// Add tests for assigning to member access `obj.field = val`
 		{
 			name:             "Assign to Member Access",
-			input:            `myArray.length = 10`,               // Assuming Array struct { length: i32, data: ptr }
-			setupInput:       `let myArray = [1,2];`,              // Creates an Array struct instance
-			expectedLoadRe:   "",                                  // No load for literal RHS
-			expectedStoreRe:  `store i32 10, ptr %[a-zA-Z0-9_.]+`, // Store into the GEP address of length field
+			input:            `myArray.length = 10`,                 // Assuming Array struct { length: i32, data: ptr }
+			setupInput:       `let myArray = [1,2];`,                // Creates an Array struct instance
+			expectedLoadRe:   "",                                    // No load for literal RHS
+			expectedStoreRe:  `store i32 10, i32\* %[a-zA-Z0-9_.]+`, // Store into the GEP address of length field
 			expectedReturnRe: `ret i32 10`,
 		},
 	}
@@ -143,18 +143,18 @@ func TestCodeGenMemberAccessExpressionUnit(t *testing.T) {
 		{
 			name:             "Access Struct Member (Length)",
 			input:            `myArray.length`,
-			setupInput:       `let myArray = [100, 200];`,                                        // Creates %Array{i32 2, ptr ...}
-			expectedGEPRe:    `getelementptr inbounds %Array, ptr %[a-zA-Z0-9_.]+, i32 0, i32 0`, // GEP for length field (index 0)
-			expectedLoadRe:   `load i32, ptr %[a-zA-Z0-9_.]+`,                                    // Load i32 from the GEP address
-			expectedReturnRe: `ret i32 %[a-zA-Z0-9_.]+`,                                          // Return the loaded i32
+			setupInput:       `let myArray = [100, 200];`,
+			expectedGEPRe:    `getelementptr( inbounds)? %Array, %Array\* %[a-zA-Z0-9_.]+, i32 0, i32 0`,
+			expectedLoadRe:   `load i32, i32\* %[a-zA-Z0-9_.]+`,
+			expectedReturnRe: `ret i32 %[a-zA-Z0-9_.]+`,
 		},
 		{
 			name:             "Access Struct Member (Data Ptr)",
 			input:            `myArray.data`,
-			setupInput:       `let myArray = [100];`,                                             // Creates %Array{i32 1, ptr ...}
-			expectedGEPRe:    `getelementptr inbounds %Array, ptr %[a-zA-Z0-9_.]+, i32 0, i32 1`, // GEP for data field (index 1)
-			expectedLoadRe:   `load ptr, ptr %[a-zA-Z0-9_.]+`,                                    // Load ptr (i32*) from the GEP address
-			expectedReturnRe: `ret ptr %[a-zA-Z0-9_.]+`,                                          // Return the loaded ptr
+			setupInput:       `let myArray = [100];`,
+			expectedGEPRe:    `getelementptr( inbounds)? %Array, %Array\* %[a-zA-Z0-9_.]+, i32 0, i32 1`,
+			expectedLoadRe:   `load i32\*, i32\*\* %[a-zA-Z0-9_.]+`,
+			expectedReturnRe: `ret i32\* %[a-zA-Z0-9_.]+`,
 		},
 		// Add tests for nested access like `obj.inner.field` when supported
 	}

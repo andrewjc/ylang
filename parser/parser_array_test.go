@@ -148,8 +148,8 @@ func TestIndexExpressionParsingIntegration(t *testing.T) {
 		},
 		{
 			name:           "Index with Identifier",
-			input:          `main() -> { data[key]; }`,
-			expectedLeft:   "data",
+			input:          `main() -> { items[key]; }`,
+			expectedLeft:   "items",
 			expectedIndex:  "key",
 			expectedErrors: 0,
 		},

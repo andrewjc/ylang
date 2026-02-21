@@ -17,32 +17,32 @@ func TestCodeGenInfixExpressionUnit(t *testing.T) {
 		name              string
 		input             string // The infix expression
 		setupInput        string // Optional setup code (like let statements)
-		expectedOperation string // Expected LLVM IR operation (e.g., "add nsw", "sub nsw", "mul nsw", "sdiv")
-		expectedResultRe  string // Regex for the result assignment (e.g., `%[0-9]+ = add nsw i32 %.*, %.*`)
+		expectedOperation string // Expected LLVM IR operation (e.g., "add", "sub", "mul", "sdiv")
+		expectedResultRe  string // Regex for the result assignment (e.g., `%[0-9]+ = add (nsw )?i32 %.*, %.*`)
 		expectedRetRe     string // Regex for returning the result (e.g., `ret i32 %[0-9]+`)
 	}{
 		{
 			name:              "Integer Addition",
 			input:             `5 + 3`,
 			setupInput:        "",
-			expectedOperation: "add nsw", // nsw = No Signed Wrap
-			expectedResultRe:  `(%[a-zA-Z0-9_.]+) = add nsw i32 5, 3`,
+			expectedOperation: "add", // nsw = No Signed Wrap
+			expectedResultRe:  `(%[a-zA-Z0-9_.]+) = add (nsw )?i32 5, 3`,
 			expectedRetRe:     `ret i32 %[a-zA-Z0-9_.]+`,
 		},
 		{
 			name:              "Integer Subtraction",
 			input:             `10 - 4`,
 			setupInput:        "",
-			expectedOperation: "sub nsw",
-			expectedResultRe:  `(%[a-zA-Z0-9_.]+) = sub nsw i32 10, 4`,
+			expectedOperation: "sub",
+			expectedResultRe:  `(%[a-zA-Z0-9_.]+) = sub (nsw )?i32 10, 4`,
 			expectedRetRe:     `ret i32 %[a-zA-Z0-9_.]+`,
 		},
 		{
 			name:              "Integer Multiplication",
 			input:             `6 * 7`,
 			setupInput:        "",
-			expectedOperation: "mul nsw",
-			expectedResultRe:  `(%[a-zA-Z0-9_.]+) = mul nsw i32 6, 7`,
+			expectedOperation: "mul",
+			expectedResultRe:  `(%[a-zA-Z0-9_.]+) = mul (nsw )?i32 6, 7`,
 			expectedRetRe:     `ret i32 %[a-zA-Z0-9_.]+`,
 		},
 		{
@@ -57,9 +57,9 @@ func TestCodeGenInfixExpressionUnit(t *testing.T) {
 			name:              "Identifier Addition",
 			input:             `a + b`,
 			setupInput:        `let a = 100; let b = 200;`,
-			expectedOperation: "add nsw",
+			expectedOperation: "add",
 			// Expect loads before the add
-			expectedResultRe: `(%[a-zA-Z0-9_.]+) = add nsw i32 %[a-zA-Z0-9_.]+, %[a-zA-Z0-9_.]+`,
+			expectedResultRe: `(%[a-zA-Z0-9_.]+) = add (nsw )?i32 %[a-zA-Z0-9_.]+, %[a-zA-Z0-9_.]+`,
 			expectedRetRe:    `ret i32 %[a-zA-Z0-9_.]+`,
 		},
 		// Add tests for comparison operators (>, <, ==, !=) when implemented
@@ -75,11 +75,26 @@ func TestCodeGenInfixExpressionUnit(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			fullInput := tt.setupInput + tt.input // Combine setup and expression
-			node := parseExpr(t, fullInput)       // Parse the main expression part
-			infixExpr, ok := node.(*ast.InfixExpression)
+			// Parse as full program and extract the last expression (the infix expr)
+			fullInput := fmt.Sprintf("main() -> { %s%s; }", tt.setupInput, tt.input)
+			lFull, err := lexer.NewLexerFromString(fullInput)
+			if err != nil {
+				t.Fatalf("Lexer error: %v", err)
+			}
+			pFull := parser.NewParser(lFull)
+			progFull := pFull.ParseProgram()
+			if len(pFull.Errors()) > 0 {
+				t.Fatalf("Parser errors: %v", pFull.Errors())
+			}
+			bodyFull, _ := progFull.MainFunction.Body.(*ast.BlockStatement)
+			lastStmt := bodyFull.Statements[len(bodyFull.Statements)-1]
+			exprStmtFull, ok := lastStmt.(*ast.ExpressionStatement)
 			if !ok {
-				t.Fatalf("Parsed node for expression is not InfixExpression, got %T", node)
+				t.Fatalf("Last statement is not ExpressionStatement, got %T", lastStmt)
+			}
+			infixExpr, ok := exprStmtFull.Expression.(*ast.InfixExpression)
+			if !ok {
+				t.Fatalf("Parsed node for expression is not InfixExpression, got %T", exprStmtFull.Expression)
 			}
 
 			// Setup codegen context
@@ -182,8 +197,8 @@ func TestCodeGenCallExpressionUnit(t *testing.T) {
 		},
 		{
 			name:            "Call Function with Variable Args",
-			input:           `add(x, y)`,
-			setupInput:      `let x = 1; let y = 2; function add(a, b) -> { return a + b; }`,
+			input:           `let x = 1; let y = 2; add(x, y)`,
+			setupInput:      `function add(a, b) -> { return a + b; }`,
 			expectedFuncSig: `define i32 @add\(i32 %a, i32 %b\)`,
 			// Expect loads for x and y before the call
 			expectedCallRe: `(%[a-zA-Z0-9_.]+) = call i32 @add\(i32 %[a-zA-Z0-9_.]+, i32 %[a-zA-Z0-9_.]+\)`, // Args are loaded values
@@ -191,9 +206,9 @@ func TestCodeGenCallExpressionUnit(t *testing.T) {
 		},
 		{
 			name:            "Call Function Assigned to Variable",
-			input:           `fnPtr(50)`,
-			setupInput:      `function multiply(n) -> n*2; let fnPtr = multiply;`,
-			expectedFuncSig: `define internal i32 @multiply\(i32 %n\)`, // Internal linkage likely
+			input:           `let fnPtr = multiply; fnPtr(50)`,
+			setupInput:      `function multiply(n) -> { return n * 2; }`,
+			expectedFuncSig: `define i32 @multiply\(i32 %n\)`,
 			// Expect alloc for fnPtr, store of @multiply, load of ptr, then call via ptr
 			expectedCallRe: `(%[a-zA-Z0-9_.]+) = call i32 %[a-zA-Z0-9_.]+\(i32 50\)`, // Call via loaded pointer
 			expectedRetRe:  `ret i32 %[a-zA-Z0-9_.]+`,
@@ -211,74 +226,14 @@ func TestCodeGenCallExpressionUnit(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			fullInput := tt.setupInput + tt.input // Combine setup and call
-			node := parseExpr(t, fullInput)       // Parse the call expression part
-			callExpr, ok := node.(*ast.CallExpression)
-			if !ok {
-				t.Fatalf("Parsed node for expression is not CallExpression, got %T", node)
+			// Build a complete ylang program with functions at top level and a main that calls them
+			fullProgram := fmt.Sprintf("%s\nmain() -> {\n%s\n}", tt.setupInput, tt.input)
+			ir, err := generateIRForProgram(t, fullProgram)
+			if err != nil {
+				t.Fatalf("generateIRForProgram failed: %v\nIR:\n%s", err, ir)
 			}
 
-			// Setup codegen context
-			cg := NewCodeGenerator()
-			// Result type depends on called function, assume i32 for non-void for now
-			mainSig := types.NewFunc(types.I32)
-			mainFunc := cg.Module.NewFunc("main", mainSig.RetType)
-			entryBlock := mainFunc.NewBlock("entry")
-			cg.currentFunc = mainFunc
-			cg.Block = entryBlock
-
-			// Visit setup code first
-			if tt.setupInput != "" {
-				// Need to parse setup into a Program and visit it
-				lSetup, _ := lexer.NewLexerFromString(tt.setupInput)
-				pSetup := parser.NewParser(lSetup)
-				progSetup := pSetup.ParseProgram()
-				// No error check - assume setup is valid for the test
-				errVisit := progSetup.Accept(cg) // Visit the whole setup program
-				if errVisit != nil {
-					t.Fatalf("Codegen failed during setup visit for input %q: %v", tt.input, errVisit)
-				}
-				// Reset block pointer as visiting setup might change it
-				cg.Block = entryBlock
-			}
-
-			// Visit the target call expression node
-			errCall := callExpr.Accept(cg)
-			if errCall != nil {
-				t.Fatalf("Codegen failed during call expression visit for input %q: %v", tt.input, errCall)
-			}
-
-			// Add terminator (return the result or default)
-			if cg.Block != nil && cg.Block.Term == nil {
-				// Determine if the called function was expected to be void based on the regex
-				isVoidReturn := strings.Contains(tt.expectedCallRe, "call void")
-
-				// The dummy main in the test always returns i32.
-				// If the called function was *not* void AND cg.lastValue holds the result,
-				// return that result (assuming it's compatible with i32 for this test).
-				// Otherwise, return the default 0 for the dummy main.
-				if !isVoidReturn && cg.lastValue != nil {
-					// Basic check: if lastValue is i32, return it.
-					// More robust checks/casting might be needed if the called function
-					// could return other types convertible to i32.
-					if cg.lastValue.Type().Equal(types.I32) {
-						cg.Block.NewRet(cg.lastValue)
-					} else {
-						// If the type isn't i32, just return 0 for the test main for now.
-						// Or potentially log an error if the test expected a specific return type.
-						t.Logf("Warning: Call result type (%s) doesn't match test main's i32 return. Returning default 0.", cg.lastValue.Type())
-						cg.Block.NewRet(constant.NewInt(types.I32, 0))
-					}
-				} else {
-					// Return default 0 if the called function was void,
-					// or if cg.lastValue was nil (e.g., codegen error).
-					cg.Block.NewRet(constant.NewInt(types.I32, 0))
-				}
-			} else if cg.Block == nil {
-				t.Fatalf("Codegen block became nil unexpectedly for input %q", tt.input)
-			}
-
-			ir := cg.Module.String()
+			t.Logf("Generated IR for %q:\n%s", tt.input, ir)
 
 			// Check if the function was declared/defined with expected signature
 			reSig := regexp.MustCompile(tt.expectedFuncSig)

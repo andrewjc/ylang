@@ -21,7 +21,7 @@ func TestAnonymousFunctionParsing(t *testing.T) {
                     let f = () -> { return 5; };
                 }`,
 			expectedParams: []string{},
-			expectedBody:   "return 5;",
+			expectedBody:   "{\n    return 5;\n}",
 			isBlockBody:    true,
 			expectedError:  false,
 			description:    "Anonymous function with empty parameters and block body",
@@ -32,7 +32,7 @@ func TestAnonymousFunctionParsing(t *testing.T) {
                     let f = (a) -> a + 1;
                 }`,
 			expectedParams: []string{"a"},
-			expectedBody:   "a + 1",
+			expectedBody:   "(a + 1)",
 			isBlockBody:    false,
 			expectedError:  false,
 			description:    "Anonymous function with one parameter and expression body",
