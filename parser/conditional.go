@@ -54,6 +54,38 @@ func (p *Parser) parseIfStatement() ast.ExpressionNode {
 	return ifStmt
 }
 
+func (p *Parser) parseWhileStatement() *ast.WhileStatement {
+	ws := &ast.WhileStatement{Token: p.currentToken}
+
+	if !p.expectPeek(TokenTypeLeftParenthesis) {
+		fmt.Println("Expected '(' after 'while'")
+		return nil
+	}
+
+	p.nextToken()
+	ws.Condition = p.parseExpression(LOWEST)
+	if ws.Condition == nil {
+		return nil
+	}
+
+	if !p.expectPeek(TokenTypeRightParenthesis) {
+		fmt.Println("Expected ')' after while condition")
+		return nil
+	}
+
+	if !p.expectPeek(TokenTypeLeftBrace) {
+		fmt.Println("Expected '{' for while body")
+		return nil
+	}
+
+	bodyNode := p.parseBlockStatement()
+	if bodyNode == nil {
+		return nil
+	}
+	ws.Body = bodyNode
+	return ws
+}
+
 func (p *Parser) parseTraditionalTernaryExpression(condition ast.ExpressionNode) ast.ExpressionNode {
 	ternaryExp := &ast.TraditionalTernaryExpression{
 		Token:     p.currentToken, // '?' token (already current when called as infix fn)

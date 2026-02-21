@@ -60,6 +60,40 @@ func (cg *CodeGenerator) VisitIfStatement(is *ast.IfStatement) error {
 	return nil
 }
 
+func (cg *CodeGenerator) VisitWhileStatement(ws *ast.WhileStatement) error {
+	condBlock := cg.currentFunc.NewBlock("while_cond")
+	bodyBlock := cg.currentFunc.NewBlock("while_body")
+	exitBlock := cg.currentFunc.NewBlock("while_exit")
+
+	// Fall into the condition check.
+	cg.Block.NewBr(condBlock)
+
+	// Condition block: evaluate condition and branch.
+	cg.Block = condBlock
+	if err := ws.Condition.Accept(cg); err != nil {
+		return err
+	}
+	condVal := cg.lastValue
+	iCmp := cg.Block.NewICmp(enum.IPredNE, condVal, constant.NewInt(types.I32, 0))
+	cg.Block.NewCondBr(iCmp, bodyBlock, exitBlock)
+
+	// Body block.
+	cg.Block = bodyBlock
+	if ws.Body != nil {
+		if err := ws.Body.Accept(cg); err != nil {
+			return err
+		}
+	}
+	if cg.Block != nil && cg.Block.Term == nil {
+		cg.Block.NewBr(condBlock)
+	}
+
+	// Exit block.
+	cg.Block = exitBlock
+	cg.lastValue = constant.NewInt(types.I32, 0)
+	return nil
+}
+
 func (cg *CodeGenerator) VisitTraditionalTernaryExpression(te *ast.TraditionalTernaryExpression) error {
 	//TODO implement me
 	panic("implement me")
