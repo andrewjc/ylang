@@ -47,7 +47,7 @@ func TestLexer_AssemblyTokenization(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name:  "asm not as keyword (part of identifier)",
+			name:  "asm is a keyword (TokenTypeAssembly)",
 			input: `asm = 1`,
 			expectedTokens: []LangToken{
 				{Type: TokenTypeAssembly, Literal: "asm", Line: 0, Pos: 0, Length: 3},
