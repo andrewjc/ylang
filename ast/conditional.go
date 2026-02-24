@@ -61,3 +61,27 @@ func (is *IfStatement) StringIndent(indent int) string {
 
 	return out.String()
 }
+
+// WhileStatement represents a 'while (condition) { body }' loop.
+type WhileStatement struct {
+	Token     LangToken      // The 'while' token
+	Condition ExpressionNode // Loop condition
+	Body      ExpressionNode // Loop body (BlockStatement)
+}
+
+func (ws *WhileStatement) Accept(visitor Visitor) error {
+	return visitor.VisitWhileStatement(ws)
+}
+
+func (ws *WhileStatement) statementNode()       {}
+func (ws *WhileStatement) TokenLiteral() string { return ws.Token.Literal }
+func (ws *WhileStatement) String() string {
+	var out strings.Builder
+	out.WriteString("while (")
+	out.WriteString(ws.Condition.String())
+	out.WriteString(") ")
+	if ws.Body != nil {
+		out.WriteString(ws.Body.String())
+	}
+	return out.String()
+}

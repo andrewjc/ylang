@@ -98,9 +98,9 @@ func (cg *CodeGenerator) generateArrayMap(objPtrVal value.Value, arrayType *type
 	indexAlloca.SetName("map_idx")
 	cg.Block.NewStore(constant.NewInt(types.I64, 0), indexAlloca)
 
-	loopCondBlock := cg.currentFunc.NewBlock("map_loop_cond")
-	loopBodyBlock := cg.currentFunc.NewBlock("map_loop_body")
-	loopEndBlock := cg.currentFunc.NewBlock("map_loop_end")
+	loopCondBlock := cg.newBlock("map_loop_cond")
+	loopBodyBlock := cg.newBlock("map_loop_body")
+	loopEndBlock := cg.newBlock("map_loop_end")
 
 	cg.Block.NewBr(loopCondBlock) // Jump to condition check first
 
@@ -190,9 +190,9 @@ func (cg *CodeGenerator) generateArrayForEach(objPtrVal value.Value, arrayType *
 	indexAlloca.SetName("fe_idx")
 	cg.Block.NewStore(constant.NewInt(types.I64, 0), indexAlloca)
 
-	loopCondBlock := cg.currentFunc.NewBlock("fe_loop_cond")
-	loopBodyBlock := cg.currentFunc.NewBlock("fe_loop_body")
-	loopEndBlock := cg.currentFunc.NewBlock("fe_loop_end")
+	loopCondBlock := cg.newBlock("fe_loop_cond")
+	loopBodyBlock := cg.newBlock("fe_loop_body")
+	loopEndBlock := cg.newBlock("fe_loop_end")
 
 	cg.Block.NewBr(loopCondBlock)
 

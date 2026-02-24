@@ -2,95 +2,85 @@ package generator
 
 import (
 	"compiler/ast"
+	"fmt"
+	"strings"
+
 	"github.com/llir/llvm/ir"
 	"github.com/llir/llvm/ir/constant"
 	"github.com/llir/llvm/ir/types"
 	"github.com/llir/llvm/ir/value"
 )
 
+// makeSyscallInlineAsm builds an *ir.InlineAsm for a Linux x86-64 syscall with
+// the provided operand types.  The first element of argTypes is always the
+// syscall number (rax); subsequent elements map to rdi, rsi, rdx, r10, r8, r9.
+// The return value is the i64 result left in rax after the instruction.
+func makeSyscallInlineAsm(argTypes ...types.Type) *ir.InlineAsm {
+	regNames := []string{"{rax}", "{rdi}", "{rsi}", "{rdx}", "{r10}", "{r8}", "{r9}"}
+	parts := []string{"={rax}"}
+	for i := range argTypes {
+		if i < len(regNames) {
+			parts = append(parts, regNames[i])
+		}
+	}
+	parts = append(parts, "~{rcx}", "~{r11}", "~{memory}")
+
+	funcType := types.NewFunc(types.I64, argTypes...)
+	asm := ir.NewInlineAsm(types.NewPointer(funcType), "syscall", strings.Join(parts, ","))
+	asm.SideEffect = true
+	return asm
+}
+
+// coerceToI64 sign-extends or ptr-to-ints a value to i64 so it can be used
+// as a syscall register operand.  Sign-extension is used for integer types so
+// that negative values like AT_FDCWD (-100) are preserved correctly.
+func coerceToI64(block *ir.Block, v value.Value) value.Value {
+	switch t := v.Type().(type) {
+	case *types.IntType:
+		if t.BitSize == 64 {
+			return v
+		}
+		return block.NewSExt(v, types.I64)
+	case *types.PointerType:
+		return block.NewPtrToInt(v, types.I64)
+	default:
+		return v
+	}
+}
+
 func (cg *CodeGenerator) VisitSyscallExpression(se *ast.SyscallExpression) error {
-	// 1) Evaluate se.Num => syscall number
+	// 1) Evaluate syscall number.
 	if err := se.Num.Accept(cg); err != nil {
 		return err
 	}
-	numVal := cg.lastValue // e.g. i64
+	numVal := coerceToI64(cg.Block, cg.lastValue)
 
-	// 2) Evaluate each of the up to 6 arguments
+	// 2) Evaluate up to 6 arguments, coercing each to i64.
 	var argVals []value.Value
 	for _, argNode := range se.Args {
 		if err := argNode.Accept(cg); err != nil {
 			return err
 		}
-		argVals = append(argVals, cg.lastValue)
+		if cg.lastValue == nil {
+			return fmt.Errorf("syscall argument produced no value")
+		}
+		argVals = append(argVals, coerceToI64(cg.Block, cg.lastValue))
 	}
 
-	// We'll store them in the registers:
-	//   rax = syscall number
-	//   rdi = arg0
-	//   rsi = arg1
-	//   rdx = arg2
-	//   r10 = arg3
-	//   r8  = arg4
-	//   r9  = arg5
-	//
-	// Then do 'syscall' instruction. We'll use inline assembly.
-
-	// We'll want to handle variable argument counts. Let's define defaults:
-	var reg0 value.Value = constant.NewInt(types.I64, 0)
-	var reg1 value.Value = constant.NewInt(types.I64, 0)
-	var reg2 value.Value = constant.NewInt(types.I64, 0)
-	var reg3 value.Value = constant.NewInt(types.I64, 0)
-	var reg4 value.Value = constant.NewInt(types.I64, 0)
-	var reg5 value.Value = constant.NewInt(types.I64, 0)
-
-	if len(argVals) > 0 {
-		reg0 = argVals[0]
-	}
-	if len(argVals) > 1 {
-		reg1 = argVals[1]
-	}
-	if len(argVals) > 2 {
-		reg2 = argVals[2]
-	}
-	if len(argVals) > 3 {
-		reg3 = argVals[3]
-	}
-	if len(argVals) > 4 {
-		reg4 = argVals[4]
-	}
-	if len(argVals) > 5 {
-		reg5 = argVals[5]
+	// Pad missing args with 0.
+	for len(argVals) < 6 {
+		argVals = append(argVals, constant.NewInt(types.I64, 0))
 	}
 
-	// We'll build inline assembly with placeholders
-	// In LLVM: "mov rax,$0; mov rdi,$1; mov rsi,$2; ...; syscall"
-	// Then we feed the arguments in the correct order.
+	// Build inline-asm operand type list: syscall# + 6 args, all i64.
+	allArgTypes := make([]types.Type, 7)
+	for i := range allArgTypes {
+		allArgTypes[i] = types.I64
+	}
+	allArgs := append([]value.Value{numVal}, argVals...)
 
-	asmTemplate := `
-    mov rax, $0
-    mov rdi, $1
-    mov rsi, $2
-    mov rdx, $3
-    mov r10, $4
-    mov r8, $5
-    mov r9, $6
-    syscall
-    `
-	// We'll produce one i64 return (the result in RAX)
-	inlineAsmTy := types.I64
-	inlineAsm := ir.NewInlineAsm(
-		inlineAsmTy,
-		asmTemplate,
-		"", // constraints... we can do "r,r,r,r,r,r,r"
-	)
-	inlineAsm.SideEffect = true // verify this?
-
-	call := cg.Block.NewCall(
-		inlineAsm,
-		// The arguments in the order of placeholders $0...$6
-		numVal, reg0, reg1, reg2, reg3, reg4, reg5,
-	)
+	asm := makeSyscallInlineAsm(allArgTypes...)
+	call := cg.Block.NewCall(asm, allArgs...)
 	cg.lastValue = call
-
 	return nil
 }

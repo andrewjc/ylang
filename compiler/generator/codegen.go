@@ -25,6 +25,10 @@ type CodeGenerator struct {
 	inAssignmentLHS bool
 
 	methodCallReceiver value.Value
+
+	// blockCounter is incremented each time a new labelled block is created so
+	// that inner loops / nested ifs never share a label with an outer one.
+	blockCounter int
 }
 
 func NewCodeGenerator() *CodeGenerator {
@@ -51,6 +55,36 @@ func NewCodeGenerator() *CodeGenerator {
 	cg.Structs["Array"] = arrayStructType
 
 	return cg
+}
+
+// trySetName sets a debug name on an LLVM value only when the name is not
+// already used by another named value in the current function.  This avoids
+// "multiple definition of local value" errors when the same construct (e.g.
+// an index expression) appears several times in the same function body.
+func (cg *CodeGenerator) trySetName(v interface{ SetName(string) }, name string) {
+	for _, blk := range cg.currentFunc.Blocks {
+		for _, inst := range blk.Insts {
+			type named interface{ Name() string }
+			if n, ok := inst.(named); ok && n.Name() == name {
+				return // name already taken — leave value unnamed
+			}
+		}
+	}
+	v.SetName(name)
+}
+
+// newBlock creates a new basic block in the current function.  If the
+// requested name is already taken by another block in the same function,
+// a numeric suffix (e.g. "_2") is appended so that LLVM IR label names
+// remain unique within the function.
+func (cg *CodeGenerator) newBlock(name string) *ir.Block {
+	for _, blk := range cg.currentFunc.Blocks {
+		if blk.LocalIdent.Name() == name {
+			cg.blockCounter++
+			return cg.currentFunc.NewBlock(fmt.Sprintf("%s_%d", name, cg.blockCounter))
+		}
+	}
+	return cg.currentFunc.NewBlock(name)
 }
 
 func (cg *CodeGenerator) VisitVariableDeclaration(vd *ast.VariableDeclaration) error {
