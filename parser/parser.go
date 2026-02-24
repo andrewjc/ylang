@@ -24,6 +24,7 @@ var precedences = map[TokenType]int{
 	TokenTypeAssignment:      ASSIGN,
 	TokenTypeEqual:           EQUALS,
 	TokenTypeLessThan:        LESSGREATER,
+	TokenTypeLessThanEqual:   LESSGREATER,
 	TokenTypeGreaterThan:     LESSGREATER,
 	TokenTypePlus:            SUM,
 	TokenTypeMinus:           SUM,
@@ -92,6 +93,7 @@ func NewParser(lexer *Lexer) *Parser {
 	p.registerInfix(TokenTypeDivide, p.parseInfixExpression)
 	p.registerInfix(TokenTypeEqual, p.parseInfixExpression)
 	p.registerInfix(TokenTypeLessThan, p.parseInfixExpression)
+	p.registerInfix(TokenTypeLessThanEqual, p.parseInfixExpression)
 	p.registerInfix(TokenTypeGreaterThan, p.parseInfixExpression)
 
 	p.registerInfix(TokenTypeDot, p.parseMemberAccessExpression)
