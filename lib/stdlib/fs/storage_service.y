@@ -128,6 +128,44 @@ function storageFileSize(fd) -> {
 }
 
 // --------------------------------------------------------------------------
+// Path helpers
+// --------------------------------------------------------------------------
+
+// buildPath concatenates basePath + "/" + key into a 4096-byte buffer.
+// Returns the buffer address (caller must freeBuffer when done),
+// or a value < 0 on allocation failure.
+function buildPath(basePath, key) -> {
+    let pathBuf = allocBuffer(4096);
+    if (pathBuf < 0) {
+        return pathBuf;
+    }
+
+    // Copy basePath
+    let baseLen = 0;
+    while (basePath[baseLen]) {
+        pathBuf[baseLen] = basePath[baseLen];
+        baseLen = baseLen + 1;
+    }
+
+    // Append '/'
+    pathBuf[baseLen] = 47;
+    let pos = baseLen + 1;
+
+    // Append key
+    let keyLen = 0;
+    while (key[keyLen]) {
+        pathBuf[pos] = key[keyLen];
+        pos = pos + 1;
+        keyLen = keyLen + 1;
+    }
+
+    // Null-terminate
+    pathBuf[pos] = 0;
+
+    return pathBuf;
+}
+
+// --------------------------------------------------------------------------
 // Persistent key-value store
 // --------------------------------------------------------------------------
 // A minimal flat-file storage service.  Each key is stored as a separate
@@ -152,34 +190,10 @@ function storageInit(basePath) -> {
 // The key is used directly as the filename inside basePath.
 // Returns the number of bytes written, or < 0 on error.
 function storagePut(basePath, key, value, valueLen) -> {
-    // Build the path: basePath + "/" + key
-    // We use a scratch buffer for path concatenation.
-    let pathBuf = allocBuffer(4096);
+    let pathBuf = buildPath(basePath, key);
     if (pathBuf < 0) {
         return -1;
     }
-
-    // Copy basePath into pathBuf
-    let baseLen = 0;
-    while (basePath[baseLen]) {
-        pathBuf[baseLen] = basePath[baseLen];
-        baseLen = baseLen + 1;
-    }
-
-    // Append '/'
-    pathBuf[baseLen] = 47;
-    let pos = baseLen + 1;
-
-    // Append key
-    let keyLen = 0;
-    while (key[keyLen]) {
-        pathBuf[pos] = key[keyLen];
-        pos = pos + 1;
-        keyLen = keyLen + 1;
-    }
-
-    // Null-terminate
-    pathBuf[pos] = 0;
 
     // Open (create/truncate) the file
     // O_WRONLY | O_CREAT | O_TRUNC = 1 | 64 | 512 = 577
@@ -204,28 +218,10 @@ function storagePut(basePath, key, value, valueLen) -> {
 // Returns the number of bytes read, 0 if the key does not exist, or < 0 on
 // error.
 function storageGet(basePath, key, buf, bufLen) -> {
-    // Build path
-    let pathBuf = allocBuffer(4096);
+    let pathBuf = buildPath(basePath, key);
     if (pathBuf < 0) {
         return -1;
     }
-
-    let baseLen = 0;
-    while (basePath[baseLen]) {
-        pathBuf[baseLen] = basePath[baseLen];
-        baseLen = baseLen + 1;
-    }
-
-    pathBuf[baseLen] = 47;
-    let pos = baseLen + 1;
-
-    let keyLen = 0;
-    while (key[keyLen]) {
-        pathBuf[pos] = key[keyLen];
-        pos = pos + 1;
-        keyLen = keyLen + 1;
-    }
-    pathBuf[pos] = 0;
 
     // Open for reading
     let fd = syscall(257, -100, pathBuf, 0, 0, 0, 0);
@@ -249,27 +245,10 @@ function storageGet(basePath, key, buf, bufLen) -> {
 // storageDelete removes the file corresponding to key from the store.
 // Returns 0 on success, or < 0 on error.
 function storageDelete(basePath, key) -> {
-    let pathBuf = allocBuffer(4096);
+    let pathBuf = buildPath(basePath, key);
     if (pathBuf < 0) {
         return -1;
     }
-
-    let baseLen = 0;
-    while (basePath[baseLen]) {
-        pathBuf[baseLen] = basePath[baseLen];
-        baseLen = baseLen + 1;
-    }
-
-    pathBuf[baseLen] = 47;
-    let pos = baseLen + 1;
-
-    let keyLen = 0;
-    while (key[keyLen]) {
-        pathBuf[pos] = key[keyLen];
-        pos = pos + 1;
-        keyLen = keyLen + 1;
-    }
-    pathBuf[pos] = 0;
 
     // unlink(pathBuf)
     let ret = syscall(87, pathBuf, 0, 0, 0, 0, 0);
@@ -328,8 +307,8 @@ function storageList(basePath) -> {
 
         if (isDot == 0) {
             // Print key name followed by newline
-            syscall(1, 1, nameAddr, nameLen);
-            syscall(1, 1, "\n", 1);
+            syscall(1, 1, nameAddr, nameLen, 0, 0, 0);
+            syscall(1, 1, "\n", 1, 0, 0, 0);
         }
 
         pos = pos + reclen;
@@ -343,44 +322,15 @@ function storageList(basePath) -> {
 // storageRename renames a key in the store (moves the underlying file).
 // Returns 0 on success, or < 0 on error.
 function storageRename(basePath, oldKey, newKey) -> {
-    let oldPath = allocBuffer(4096);
-    let newPath = allocBuffer(4096);
+    let oldPath = buildPath(basePath, oldKey);
     if (oldPath < 0) {
         return -1;
     }
+    let newPath = buildPath(basePath, newKey);
     if (newPath < 0) {
         freeBuffer(oldPath, 4096);
         return -1;
     }
-
-    // Build old path
-    let baseLen = 0;
-    while (basePath[baseLen]) {
-        oldPath[baseLen] = basePath[baseLen];
-        newPath[baseLen] = basePath[baseLen];
-        baseLen = baseLen + 1;
-    }
-
-    oldPath[baseLen] = 47;
-    newPath[baseLen] = 47;
-
-    let pos = baseLen + 1;
-    let i = 0;
-    while (oldKey[i]) {
-        oldPath[pos] = oldKey[i];
-        pos = pos + 1;
-        i = i + 1;
-    }
-    oldPath[pos] = 0;
-
-    pos = baseLen + 1;
-    i = 0;
-    while (newKey[i]) {
-        newPath[pos] = newKey[i];
-        pos = pos + 1;
-        i = i + 1;
-    }
-    newPath[pos] = 0;
 
     // rename(oldPath, newPath)
     let ret = syscall(82, oldPath, newPath, 0, 0, 0, 0);
@@ -394,27 +344,10 @@ function storageRename(basePath, oldKey, newKey) -> {
 // Creates the file if it does not exist.
 // Returns the number of bytes written, or < 0 on error.
 function storageAppend(basePath, key, value, valueLen) -> {
-    let pathBuf = allocBuffer(4096);
+    let pathBuf = buildPath(basePath, key);
     if (pathBuf < 0) {
         return -1;
     }
-
-    let baseLen = 0;
-    while (basePath[baseLen]) {
-        pathBuf[baseLen] = basePath[baseLen];
-        baseLen = baseLen + 1;
-    }
-
-    pathBuf[baseLen] = 47;
-    let pos = baseLen + 1;
-
-    let keyLen = 0;
-    while (key[keyLen]) {
-        pathBuf[pos] = key[keyLen];
-        pos = pos + 1;
-        keyLen = keyLen + 1;
-    }
-    pathBuf[pos] = 0;
 
     // O_WRONLY | O_CREAT | O_APPEND = 1 | 64 | 1024 = 1089
     let fd = syscall(257, -100, pathBuf, 1089, 420, 0, 0);
