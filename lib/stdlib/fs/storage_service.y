@@ -215,8 +215,8 @@ function storagePut(basePath, key, value, valueLen) -> {
 
 // storageGet reads the value stored under key into the caller-provided buf
 // (up to bufLen bytes).
-// Returns the number of bytes read, 0 if the key does not exist, or < 0 on
-// error.
+// Returns the number of bytes read, or < 0 on error (e.g. -2 for ENOENT
+// when the key does not exist).
 function storageGet(basePath, key, buf, bufLen) -> {
     let pathBuf = buildPath(basePath, key);
     if (pathBuf < 0) {
@@ -227,7 +227,9 @@ function storageGet(basePath, key, buf, bufLen) -> {
     let fd = syscall(257, -100, pathBuf, 0, 0, 0, 0);
     if (fd < 0) {
         freeBuffer(pathBuf, 4096);
-        return 0;
+        // Return the syscall error (e.g. -2 for ENOENT) so callers can
+        // distinguish "not found" from other failures.
+        return fd;
     }
 
     // Read up to bufLen bytes
@@ -259,18 +261,18 @@ function storageDelete(basePath, key) -> {
 
 // storageList prints every key (file name) in the store to stdout.
 // Omits the "." and ".." pseudo-entries.
-// Returns 0 on success, or a non-zero value on error.
+// Returns 0 on success, or < 0 on error.
 function storageList(basePath) -> {
     let buf = allocBuffer(4096);
     if (buf < 0) {
-        return 1;
+        return -1;
     }
 
     // Open the base directory
     let fd = syscall(257, -100, basePath, 0, 0, 0, 0);
     if (fd < 0) {
         freeBuffer(buf, 4096);
-        return 1;
+        return fd;
     }
 
     // getdents64(fd, buf, 4096)
